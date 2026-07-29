@@ -1,23 +1,60 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#-------------------------------------------------------------------#
+# Autor       : WhoFoss <https://github.com/WhoFoss>
+# Programa    : los22.sh
+# DESCRIÇÃO   :
+# Script de build automatizado para compilar o LineageOS 22.2 com MicroG
+# integrado, voltado para o Xiaomi Redmi Note 13 4G (codename: sapphire,
+# SM6225/Snapdragon 685). Cuida da limpeza de repositórios antigos, repo
+# init/sync, clone de device tree/HALs/pacotes modificados, manifest local
+# do MicroG, patches (signature spoofing, sufixo de versão), instalação de
+# apps de privacidade, integração do ViPER4AndroidFX, remoção de GApps
+# stock, preparo do ambiente de build e upload do ROM final via GoFile.
+#
+# Dependências:
+#   - git
+#   - repo (Android repo tool)
+#   - wget / curl
+#   - bash >= 4
+#
+# Recursos:
+#   - Limpeza de repositórios antigos (cleanup_repos)
+#   - Clone de device tree, HALs e pacotes modificados
+#   - Manifest local do MicroG
+#   - Patch de Signature Spoofing e sufixo de versão MicroG
+#   - Instalação de apps de privacidade (DuckDuckGo, Thunderbird, AuroraStore)
+#   - Integração do ViPER4AndroidFX
+#   - Desativação de GApps stock (rgapps)
+#   - Upload automático do ROM via GoFile
+#
+#-------------------------------------------------------------------#
 
-# ================================
-# Colors
-# ================================
+#####################################
+#----------------------------------#
+# Cores
+#----------------------------------#
+#####################################
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
 
-# ================================
-# Terminal Setup
-# ================================
-echo -en "\033[?25l"  # hide cursor
-trap 'echo -en "\033[?12l\033[?25h"' EXIT  # restore on exit
+#####################################
+#----------------------------------#
+# Setup do Terminal
+#----------------------------------#
+#####################################
+echo -en "\033[?25l"  # esconde o cursor
+trap 'echo -en "\033[?12l\033[?25h"' EXIT  # restaura ao sair
 
-# ================================
-# Helper Functions
-# ================================
+#####################################
+#----------------------------------#
+# Funções Auxiliares
+#----------------------------------#
+#####################################
+
+# Imprime mensagem de erro formatada com timestamp e encerra o script.
 error_exit() {
     local message="$1"
     local exit_code="${2:-1}"
@@ -26,6 +63,7 @@ error_exit() {
     exit "$exit_code"
 }
 
+# Verifica se existe um .repo residual no HOME e aborta caso encontrado.
 check_repo_valid() {
     local repo_dir="$HOME/.repo"
 
@@ -40,6 +78,7 @@ check_repo_valid() {
     fi
 }
 
+# Imprime um cabeçalho colorido com borda ao redor da mensagem.
 print_header() {
     local message="$1"
     local border_char="${2:-=}"
@@ -51,6 +90,7 @@ print_header() {
     echo -e "${color}${border}${RESET}"
 }
 
+# Remove diretórios de pacotes/device tree que serão reclonados do zero.
 cleanup_repos() {
     echo -e "${YELLOW}Performing cleanup...${RESET}"
     rm -rf .repo/local_manifests/
@@ -64,6 +104,7 @@ cleanup_repos() {
     print_header "Cleanup completed"
 }
 
+# Clona (ou reclona) um repositório git raso em um diretório de destino.
 clone_repo() {
     local repo_url=$1
     local branch=$2
@@ -78,6 +119,7 @@ clone_repo() {
     print_header "$dest clone success"
 }
 
+# Clona um repositório de HAL, sobrescrevendo o path caso já exista.
 clone_hal() {
     local url=$1
     local path=$2
@@ -86,6 +128,7 @@ clone_hal() {
     git clone --depth 1 -b "$branch" "$url" "$path" || error_exit "Failed to clone HAL $path"
 }
 
+# Adiciona um pacote em PRODUCT_PACKAGES do device.mk, de forma idempotente.
 add_to_device_mk() {
     local package=$1
     local device_mk="device/xiaomi/sapphire/device.mk"
@@ -103,6 +146,7 @@ add_to_device_mk() {
     fi
 }
 
+# Aplica o patch de Signature Spoofing em ComputerEngine.java (com backup).
 patch_signature_spoofing() {
     local COMPUTER_ENGINE="frameworks/base/services/core/java/com/android/server/pm/ComputerEngine.java"
 
@@ -121,6 +165,7 @@ patch_signature_spoofing() {
     fi
 }
 
+# Adiciona sufixo -MicroG/-BUILD_TAG ao version.mk do vendor/lineage.
 patch_version_mk() {
     local version_mk="vendor/lineage/config/version.mk"
 
@@ -155,6 +200,7 @@ endif' "$version_mk"
     fi
 }
 
+# Baixa o APK do DuckDuckGo e gera o Android.bp para importação prebuilt.
 install_duckduckgo() {
     echo -e "${CYAN}Cloning DuckDuckGo prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/duckduckgo
@@ -179,6 +225,7 @@ EOF
     add_to_device_mk "DuckDuckGo"
 }
 
+# Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
 install_thunderbird() {
     echo -e "${CYAN}Cloning Thunderbird prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/thunderbird
@@ -201,6 +248,7 @@ EOF
     add_to_device_mk "Thunderbird"
 }
 
+# Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
 install_aurorastore() {
     echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
     rm -rf vendor/aurora
@@ -213,10 +261,14 @@ install_aurorastore() {
     add_to_device_mk "AuroraServices"
 }
 
-# ================================
-# Apps to include in the build
-# Comment out any line to skip that app
-# ================================
+#####################################
+#----------------------------------#
+# Apps de privacidade a incluir no build
+# Comente qualquer linha para pular aquele app
+#----------------------------------#
+#####################################
+
+# Orquestra a instalação de todos os apps de privacidade prebuilt.
 add_privacy_apps() {
     clear
     install_duckduckgo
@@ -225,7 +277,9 @@ add_privacy_apps() {
     print_header "Privacy apps step complete"
 }
 
-# Função para integrar o ViPER4AndroidFX (TogoFire) no device tree do sapphire
+# Integra o ViPER4AndroidFX (TogoFire) no device tree do sapphire:
+# clona o repo, registra o inherit-product, adiciona library/effect no
+# audio_effects.xml e cria as regras de sepolicy do audioserver.
 integrar_viperfx() {
 clear
     local ROOT_DIR="${ANDROID_ROOT:-$(pwd)}"
@@ -306,7 +360,9 @@ clear
         } >> "$AUDIOSERVER_TE"
         echo "[OK] regras de sepolicy adicionadas em $AUDIOSERVER_TE"
     fi
-    
+
+# Desativa o A2DP hardware offload via vendor.prop (necessário para o
+# ViperFX funcionar corretamente no Bluetooth).
 desativar_a2dp_offload() {
     local ROOT_DIR="${ANDROID_ROOT:-$(pwd)}"
     local VENDOR_PROP
@@ -347,9 +403,13 @@ desativar_a2dp_offload() {
     return 0
 }
 
-# ================================
-# Check/Create LineageOS-MicroG directory
-# ================================
+#####################################
+#----------------------------------#
+# Diretório de trabalho do LineageOS-MicroG
+#----------------------------------#
+#####################################
+
+# Garante que estamos dentro de $HOME/LineageOS-MicroG, criando se preciso.
 setup_lineage_dir() {
     LINEAGE_DIR="LineageOS-MicroG"
     TARGET_DIR="$HOME/$LINEAGE_DIR"
@@ -375,9 +435,11 @@ setup_lineage_dir() {
     fi
 }
 
-# ================================
-# Main Script
-# ================================
+#####################################
+#----------------------------------#
+# Script Principal
+#----------------------------------#
+#####################################
 check_repo_valid
 setup_lineage_dir
 cd "$HOME/LineageOS-MicroG" || error_exit "Failed to cd to LineageOS22-MicroG"
@@ -429,6 +491,7 @@ clone_hal "https://github.com/sapphire-sm6225/device_qcom_sepolicy_vndr.git" "de
 print_header "HALs cloned"
 clear
 
+# Instala o script de upload do GoFile e cria o alias "gofile" no bashrc.
 gofile_install(){
 echo -e "${CYAN}Installing gofile upload tool...${RESET}"
 wget -q https://raw.githubusercontent.com/kenway214/GoFile-Upload-Script/master/upload.sh \
@@ -440,6 +503,8 @@ source ~/.bashrc 2>/dev/null || true
  print_header "gofile installed"
 }
 
+# Desativa GApps stock no lineage_sapphire.mk: comenta o include do gms.mk
+# e derruba as flags do bloco "Gapps config" para false.
 rgapps() {
     local MK_FILE="device/xiaomi/sapphire/lineage_sapphire.mk"
 
@@ -492,7 +557,7 @@ clear
 # integrar_viperfx
 patch_signature_spoofing
 patch_version_mk
-echo 
+echo
 add_privacy_apps
 
 clear
@@ -509,6 +574,8 @@ clear
 echo -e "${RED}Starting build...${RESET}"
 #brunch sapphire user || error_exit "Brunch failed"
 
+# Localiza o ROM mais recente, gera o SHA256 e envia para o GoFile
+# (usando o script local se existir, com fallback via download remoto).
 upload(){
     # Upload ROM to GoFile
     BUILD_DIR="out/target/product/sapphire"
