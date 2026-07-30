@@ -100,7 +100,7 @@ cleanup_repos() {
     rm -rf hardware/qcom-caf/common
     rm -rf packages/apps/ThemePicker
     rm -rf vendor/lineage
-    rm -rf frameworks/base
+  # rm -rf frameworks/base
     print_header "Cleanup completed"
 }
 
@@ -474,7 +474,7 @@ clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Updater" "l
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_ThemePicker" "lineage-22.2" "packages/apps/ThemePicker"
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Trebuchet" "lineage-22.2" "packages/apps/Trebuchet"
 clone_repo "https://github.com/sapphire-sm6225/android_vendor_lineage.git" "lineage-22.2" "vendor/lineage"
-clone_repo "https://github.com/sapphire-sm6225/android_frameworks_base.git" "lineage-22.2" "frameworks/base"
+#clone_repo "https://github.com/sapphire-sm6225/android_frameworks_base.git" "lineage-22.2" "frameworks/base"
 print_header "Vendor lineage cloned"
 print_header "Modified packages cloned"
 echo && clear
