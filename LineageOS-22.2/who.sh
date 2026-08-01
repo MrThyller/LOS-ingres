@@ -1,0 +1,516 @@
+#!/usr/bin/env bash
+#-------------------------------------------------------------------#
+# Autor       : WhoFoss <https://github.com/WhoFoss>
+# Programa    : los22.sh
+# DESCRIÇÃO   :
+# Script de build automatizado para compilar o LineageOS 22.2 com MicroG
+# integrado, voltado para o Xiaomi Redmi Note 13 4G (codename: sapphire,
+# SM6225/Snapdragon 685). Cuida da limpeza de repositórios antigos, repo
+# init/sync, clone de device tree/HALs/pacotes modificados, manifest local
+# do MicroG, patches (signature spoofing, sufixo de versão), instalação de
+# apps de privacidade, integração do ViPER4AndroidFX, remoção de GApps
+# stock, preparo do ambiente de build e upload do ROM final via GoFile.
+#
+# Dependências:
+#   - git
+#   - repo (Android repo tool)
+#   - wget / curl
+#   - bash >= 4
+#
+# Recursos:
+#   - Limpeza de repositórios antigos (cleanup_repos)
+#   - Clone de device tree, HALs e pacotes modificados
+#   - Manifest local do MicroG
+#   - Patch de Signature Spoofing e sufixo de versão MicroG
+#   - Instalação de apps de privacidade (DuckDuckGo, Thunderbird, AuroraStore)
+#   - Integração do ViPER4AndroidFX
+#   - Desativação de GApps stock (rgapps)
+#   - Upload automático do ROM via GoFile
+#
+#-------------------------------------------------------------------#
+
+#####################################
+#----------------------------------#
+# Cores
+#----------------------------------#
+#####################################
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+
+#####################################
+#----------------------------------#
+# Setup do Terminal
+#----------------------------------#
+#####################################
+echo -en "\033[?25l"  # esconde o cursor
+trap 'echo -en "\033[?12l\033[?25h"' EXIT  # restaura ao sair
+
+#####################################
+#----------------------------------#
+# Funções Auxiliares
+#----------------------------------#
+#####################################
+
+# Imprime mensagem de erro formatada com timestamp e encerra o script.
+error_exit() {
+    local message="$1"
+    local exit_code="${2:-1}"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${RED}[ERROR] ${timestamp} - ${message}${RESET}" >&2
+    exit "$exit_code"
+}
+
+# Verifica se existe um .repo residual no HOME e aborta caso encontrado.
+check_repo_valid() {
+    local repo_dir="$HOME/.repo"
+
+    if [ -d "$repo_dir" ]; then
+        echo "[ERROR] $repo_dir found — leftover workspace in home directory"
+
+        if [ ! -f "$repo_dir/manifest.xml" ] && [ ! -L "$repo_dir/manifest.xml" ]; then
+            echo "[ERROR] Also, this .repo appears incomplete/corrupted (missing manifest.xml)"
+        fi
+
+        error_exit "Remove or move $repo_dir before continuing (rm -rf $repo_dir)"
+    fi
+}
+
+# Imprime um cabeçalho colorido com borda ao redor da mensagem.
+print_header() {
+    local message="$1"
+    local border_char="${2:-=}"
+    local color="${3:-$GREEN}"
+    local length=${#message}
+    local border=$(printf "%${length}s" | tr " " "$border_char")
+    echo -e "${color}${border}${RESET}"
+    echo -e "${color}${message}${RESET}"
+    echo -e "${color}${border}${RESET}"
+}
+
+# Remove diretórios de pacotes/device tree que serão reclonados do zero.
+cleanup_repos() {
+    echo -e "${YELLOW}Performing cleanup...${RESET}"
+    rm -rf .repo/local_manifests/
+    rm -rf packages/apps/Trebuchet
+    rm -rf packages/apps/Updater
+    rm -rf packages/apps/Settings
+    rm -rf hardware/qcom-caf/common
+    rm -rf packages/apps/ThemePicker
+    rm -rf vendor/lineage
+  # rm -rf frameworks/base
+    print_header "Cleanup completed"
+}
+
+# Clona (ou reclona) um repositório git raso em um diretório de destino.
+clone_repo() {
+    local repo_url=$1
+    local branch=$2
+    local dest=$3
+
+    echo -e "${CYAN}Cloning $dest...${RESET}"
+
+    [ -d "$dest" ] && rm -rf "$dest"
+
+    git clone --depth 1 -b "$branch" "$repo_url" "$dest" || error_exit "Failed to clone $dest"
+
+    print_header "$dest clone success"
+}
+
+# Clona um repositório de HAL, sobrescrevendo o path caso já exista.
+clone_hal() {
+    local url=$1
+    local path=$2
+    local branch=$3
+    rm -rf "$path"
+    git clone --depth 1 -b "$branch" "$url" "$path" || error_exit "Failed to clone HAL $path"
+}
+
+# Adiciona um pacote em PRODUCT_PACKAGES do device.mk, de forma idempotente.
+add_to_device_mk() {
+    local package=$1
+    local device_mk="device/xiaomi/sapphire/device.mk"
+
+    if [ ! -f "$device_mk" ]; then
+        echo -e "${YELLOW}device.mk not found, skipping $package addition${RESET}"
+        return
+    fi
+
+    if ! grep -q "^PRODUCT_PACKAGES += $package$" "$device_mk"; then
+        echo "PRODUCT_PACKAGES += $package" >> "$device_mk"
+        print_header "$package added to device.mk"
+    else
+        echo -e "${YELLOW}$package already exists in device.mk${RESET}"
+    fi
+}
+
+# Aplica o patch de Signature Spoofing em ComputerEngine.java (com backup).
+patch_signature_spoofing() {
+    local COMPUTER_ENGINE="frameworks/base/services/core/java/com/android/server/pm/ComputerEngine.java"
+
+    if [ ! -f "$COMPUTER_ENGINE" ]; then
+        echo -e "${YELLOW}ComputerEngine.java not found, skipping patch${RESET}"
+        return
+    fi
+
+    cp "$COMPUTER_ENGINE" "${COMPUTER_ENGINE}.backup"
+
+    if grep -q 'if (!isDebuggable())' "$COMPUTER_ENGINE"; then
+        sed -i '/if (!isDebuggable()) {/{N;N;d}' "$COMPUTER_ENGINE"
+        print_header "Signature Spoofing patch applied"
+    else
+        echo -e "${YELLOW}Signature Spoofing patch: block not found or already patched${RESET}"
+    fi
+}
+
+# Adiciona sufixo -MicroG/-BUILD_TAG ao version.mk do vendor/lineage.
+patch_version_mk() {
+    local version_mk="vendor/lineage/config/version.mk"
+
+    if [ ! -f "$version_mk" ]; then
+        echo -e "${YELLOW}version.mk not found, skipping MicroG suffix patch${RESET}"
+        return
+    fi
+
+    cp "$version_mk" "${version_mk}.backup"
+
+    if grep -q "MicroG" "$version_mk"; then
+        echo -e "${YELLOW}MicroG suffix already patched${RESET}"
+        return
+    fi
+
+    sed -i '/^LINEAGE_VERSION_SUFFIX := .*/a \
+\
+# Add MICROG to suffix if WITH_GMS is true\
+ifeq ($(WITH_GMS),true)\
+    LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-MicroG\
+endif\
+\
+# Add custom build tag/feature to suffix if BUILD_TAG is defined\
+ifneq ($(BUILD_TAG),)\
+    LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-$(BUILD_TAG)\
+endif' "$version_mk"
+
+    if grep -q "MicroG" "$version_mk"; then
+        print_header "MicroG suffix patch applied successfully"
+    else
+        echo -e "${YELLOW}Warning: MicroG suffix patch may not have been applied${RESET}"
+    fi
+}
+
+# Baixa o APK do DuckDuckGo e gera o Android.bp para importação prebuilt.
+install_duckduckgo() {
+    echo -e "${CYAN}Cloning DuckDuckGo prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/duckduckgo
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/duckduckgo/DuckDuckGo.apk \
+        "https://f-droid.org/repo/com.duckduckgo.mobile.android_52850000.apk" \
+        || { echo "[ERRO] Falha ao baixar DuckDuckGo.apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/duckduckgo/Android.bp << 'EOF'
+android_app_import {
+    name: "DuckDuckGo",
+    apk: "DuckDuckGo.apk",
+    presigned: true,
+    preprocessed: true,
+    product_specific: true,
+    dex_preopt: {
+        enabled: false,
+    },
+    overrides: ["Browser2", "Jelly"],
+}
+EOF
+    print_header "DuckDuckGo prebuilt cloned to device/xiaomi/sapphire/prebuilt/duckduckgo"
+    add_to_device_mk "DuckDuckGo"
+}
+
+# Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
+install_thunderbird() {
+    echo -e "${CYAN}Cloning Thunderbird prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/thunderbird
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/thunderbird/Thunderbird.apk \
+        "https://f-droid.org/repo/net.thunderbird.android_23.apk" \
+        || { echo "[ERRO] Falha ao baixar Thunderbird.apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
+android_app_import {
+    name: "Thunderbird",
+    apk: "Thunderbird.apk",
+    presigned: true,
+    preprocessed: true,
+    dex_preopt: {
+        enabled: false,
+    },
+}
+EOF
+    print_header "Thunderbird prebuilt cloned to device/xiaomi/sapphire/prebuilt/thunderbird"
+    add_to_device_mk "Thunderbird"
+}
+
+# Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
+install_aurorastore() {
+    echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
+    rm -rf vendor/aurora
+    git clone --depth 1 -b 12L https://github.com/MSe1969/AuroraStore-prebuilt.git vendor/aurora \
+        || { echo "[ERRO] Falha ao clonar AuroraStore-prebuilt"; return 1; }
+    rm -rf vendor/aurora/.git
+    print_header "AuroraStore prebuilt cloned to vendor/aurora"
+
+    add_to_device_mk "AuroraStore"
+    add_to_device_mk "AuroraServices"
+}
+
+#####################################
+#----------------------------------#
+# Apps de privacidade a incluir no build
+# Comente qualquer linha para pular aquele app
+#----------------------------------#
+#####################################
+
+# Orquestra a instalação de todos os apps de privacidade prebuilt.
+add_privacy_apps() {
+    clear
+    install_duckduckgo
+    install_thunderbird
+    install_aurorastore
+    print_header "Privacy apps step complete"
+}
+
+
+#####################################
+#----------------------------------#
+# Diretório de trabalho do LineageOS-MicroG
+#----------------------------------#
+#####################################
+
+# Garante que estamos dentro de $HOME/LineageOS-MicroG, criando se preciso.
+setup_lineage_dir() {
+    LINEAGE_DIR="LineageOS-MicroG"
+    TARGET_DIR="$HOME/$LINEAGE_DIR"
+
+    cd_or_exit() {
+        cd "$1" || error_exit "Failed to cd to $1"
+    }
+
+    if [ "$(basename "$PWD")" != "$LINEAGE_DIR" ]; then
+        echo -e "${CYAN}Not in $LINEAGE_DIR directory. Checking/Creating...${RESET}"
+
+        if [ -d "$TARGET_DIR" ]; then
+            cd_or_exit "$TARGET_DIR"
+            echo -e "${GREEN}Changed to existing directory: $PWD${RESET}"
+        else
+            echo -e "${YELLOW}Creating $TARGET_DIR...${RESET}"
+            mkdir -p "$TARGET_DIR" || error_exit "Failed to create $TARGET_DIR"
+            cd_or_exit "$TARGET_DIR"
+            echo -e "${GREEN}Created and changed to: $PWD${RESET}"
+        fi
+    else
+        echo -e "${GREEN}Already in $LINEAGE_DIR directory: $PWD${RESET}"
+    fi
+}
+
+#####################################
+#----------------------------------#
+# Script Principal
+#----------------------------------#
+#####################################
+check_repo_valid
+setup_lineage_dir
+cd "$HOME/LineageOS-MicroG" || error_exit "Failed to cd to LineageOS22-MicroG"
+
+echo -e "${RED}Starting LineageOS 22.2 build script...${RESET}"
+cleanup_repos
+
+echo -e "${CYAN}Initializing repo...${RESET}"
+repo init -u https://github.com/LineageOS/android.git -b lineage-22.2 --git-lfs --depth=1 || error_exit "Repo init failed"
+print_header "Repo init success"
+
+clone_repo "https://github.com/saroj-nokia/local_manifests_sapphire" "sapphire15" ".repo/local_manifests"
+
+echo -e "${GREEN}Creating MicroG manifest...${RESET}"
+cat > .repo/local_manifests/microg.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <remote name="lineageos4microg" fetch="https://github.com/lineageos4microg/" />
+    <project path="vendor/partner_gms" name="android_vendor_partner_gms" remote="lineageos4microg" revision="master" />
+</manifest>
+EOF
+print_header "MicroG manifest created"
+
+clear
+echo -e "${RED}Syncing full repo...${RESET}"
+repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune || error_exit "Repo sync failed"
+print_header "Repo sync success"
+
+echo -e "${RED}Cloning modified packages...${RESET}"
+clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Settings" "lineage-22.2" "packages/apps/Settings"
+clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Updater" "lineage-22.2" "packages/apps/Updater"
+clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_ThemePicker" "lineage-22.2" "packages/apps/ThemePicker"
+clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Trebuchet" "lineage-22.2" "packages/apps/Trebuchet"
+clone_repo "https://github.com/sapphire-sm6225/android_vendor_lineage.git" "lineage-22.2" "vendor/lineage"
+#clone_repo "https://github.com/sapphire-sm6225/android_frameworks_base.git" "lineage-22.2" "frameworks/base"
+print_header "Vendor lineage cloned"
+print_header "Modified packages cloned"
+echo && clear
+echo -e "${RED}Cloning HALs for SM6225...${RESET}"
+clone_hal "https://github.com/sapphire-sm6225/android_hardware_qcom-caf_common.git" "hardware/qcom-caf/common" "lineage-22.2"
+clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_agm.git" "hardware/qcom-caf/sm6225/audio/agm" "lineage-22.2-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_arpal-lx.git" "hardware/qcom-caf/sm6225/audio/pal" "lineage-22.0-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_data-ipa-cfg-mgr.git" "hardware/qcom-caf/sm6225/data-ipa-cfg-mgr" "lineage-22.0-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_dataipa.git" "hardware/qcom-caf/sm6225/dataipa" "lineage-22.0-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_display.git" "hardware/qcom-caf/sm6225/display" "lineage-22.0-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_media.git" "hardware/qcom-caf/sm6225/media" "lineage-22.0-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_audio.git" "hardware/qcom-caf/sm6225/audio/primary-hal" "lineage-22.0-caf-sm6225"
+clone_hal "https://github.com/sapphire-sm6225/device_qcom_sepolicy_vndr.git" "device/qcom/sepolicy_vndr/sm6225" "lineage-22.0-caf-sm6225"
+print_header "HALs cloned"
+clear
+
+# Instala o script de upload do GoFile e cria o alias "gofile" no bashrc.
+gofile_install(){
+echo -e "${CYAN}Installing gofile upload tool...${RESET}"
+wget -q https://raw.githubusercontent.com/kenway214/GoFile-Upload-Script/master/upload.sh \
+    -O ~/LineageOS-MicroG/gofile && chmod +x ~/LineageOS-MicroG/gofile
+if ! grep -q 'alias gofile' ~/.bashrc; then
+    echo 'alias gofile="~/LineageOS-MicroG/gofile"' >> ~/.bashrc
+fi
+source ~/.bashrc 2>/dev/null || true
+ print_header "gofile installed"
+}
+
+# Desativa GApps stock no lineage_sapphire.mk: comenta o include do gms.mk
+# e derruba as flags do bloco "Gapps config" para false.
+rgapps() {
+    local MK_FILE="device/xiaomi/sapphire/lineage_sapphire.mk"
+
+    if [ ! -f "$MK_FILE" ]; then
+        echo "[ERRO] $MK_FILE nao encontrado"
+        return 1
+    fi
+
+    echo -e "${CYAN}Disabling GApps in $MK_FILE...${RESET}"
+
+    # Comment gms.mk line (idempotent)
+    if grep -q '^-include vendor/gms/products/gms.mk$' "$MK_FILE"; then
+        sed -i 's/^-include vendor\/gms\/products\/gms.mk$/#-include vendor\/gms\/products\/gms.mk/' "$MK_FILE"
+        grep -q '^#-include vendor/gms/products/gms.mk$' "$MK_FILE" \
+            && echo "[OK] gms.mk comentado" \
+            || echo "[ERRO] falha ao comentar gms.mk"
+    elif grep -q '^#-include vendor/gms/products/gms.mk$' "$MK_FILE"; then
+        echo "[AVISO] gms.mk ja estava comentado"
+    else
+        echo "[AVISO] linha de include do gms.mk nao encontrada"
+    fi
+
+    # Flags do bloco "# Gapps config" a desativar
+    local flags=(
+        "TARGET_SUPPORTS_GOOGLE_RECORDER"
+        "TARGET_INCLUDE_STOCK_ARCORE"
+        "TARGET_INCLUDE_GOOGLE_COMMS"
+        "TARGET_INCLUDE_PIXEL_LAUNCHER"
+        "TARGET_INCLUDE_LIVE_WALLPAPERS"
+    )
+
+    local flag
+    for flag in "${flags[@]}"; do
+        if grep -q "^${flag} := true$" "$MK_FILE"; then
+            sed -i "s/^${flag} := true$/${flag} := false/" "$MK_FILE"
+            grep -q "^${flag} := false$" "$MK_FILE" \
+                && echo "[OK] ${flag} := false" \
+                || echo "[ERRO] falha ao ajustar ${flag}"
+        elif grep -q "^${flag} := false$" "$MK_FILE"; then
+            echo "[AVISO] ${flag} ja estava false"
+        else
+            echo "[AVISO] ${flag} nao encontrada em $MK_FILE"
+        fi
+    done
+
+    print_header "GApps disable pass complete"
+}; rgapps
+
+clear
+patch_signature_spoofing
+patch_version_mk
+
+clear
+echo -e "${CYAN}Setting up build environment...${RESET}"
+source build/envsetup.sh
+export BUILD_USERNAME=WhoFoss
+export BUILD_HOSTNAME=los22
+export SKIP_ABI_CHECKS=true
+export WITH_GMS=true
+mkdir -p out/target/product/sapphire/obj/KERNEL_OBJ/usr
+print_header "Build environment ready"
+
+clear
+echo -e "${RED}Starting build...${RESET}"
+brunch sapphire user || error_exit "Brunch failed"
+
+# Localiza o ROM mais recente, gera o SHA256 e envia para o GoFile
+# (usando o script local se existir, com fallback via download remoto).
+upload(){
+    # Upload ROM to GoFile
+    BUILD_DIR="out/target/product/sapphire"
+    GOFILE_SCRIPT="${HOME}/LineageOS-MicroG/gofile"
+    ROM_URL=""
+    ROM_SHA256=""
+    ROM_SIZE=""
+
+    if [ ! -d "$BUILD_DIR" ]; then
+        echo -e "${RED}[ERROR] Build directory not found: $BUILD_DIR${RESET}"
+        return 1
+    fi
+
+    # Find the most recent ROM (by modification date)
+    ROM_NAME=$(ls -t "$BUILD_DIR" 2>/dev/null | grep "lineage-22.2-.*-UNOFFICIAL-sapphire.*\.zip$" | head -n 1)
+
+    if [ -n "$ROM_NAME" ]; then
+        ROM_PATH="$BUILD_DIR/$ROM_NAME"
+        ROM_SIZE=$(du -h "$ROM_PATH" | cut -f1)
+        ROM_SHA256=$(sha256sum "$ROM_PATH" | cut -d' ' -f1)
+        echo "$ROM_SHA256  $ROM_NAME" > "${ROM_PATH}.sha256"
+
+        # Try using the local script first
+        if [ -x "$GOFILE_SCRIPT" ]; then
+            ROM_OUTPUT=$("$GOFILE_SCRIPT" "$ROM_PATH" 2>&1)
+            UPLOAD_EXIT=$?
+        else
+            TMP_SCRIPT=$(mktemp)
+            if curl -fsSL -o "$TMP_SCRIPT" "https://raw.githubusercontent.com/saroj-nokia/GoFile-Upload/refs/heads/master/upload.sh"; then
+                ROM_OUTPUT=$(bash "$TMP_SCRIPT" "$ROM_PATH" 2>&1)
+                UPLOAD_EXIT=$?
+            else
+                ROM_OUTPUT="Failed to download fallback script"
+                UPLOAD_EXIT=1
+            fi
+            rm -f "$TMP_SCRIPT"
+        fi
+
+        if [ $UPLOAD_EXIT -eq 0 ]; then
+            ROM_URL=$(echo "$ROM_OUTPUT" | grep -oP 'https?://[^\s]+' | head -n1)
+            if [ -z "$ROM_URL" ]; then
+                echo -e "${YELLOW}Warning: upload completed but the URL could not be extracted${RESET}"
+                echo -e "${YELLOW}Output: $ROM_OUTPUT${RESET}"
+            fi
+        else
+            echo -e "${RED}Failed to upload ROM to GoFile. Code: $UPLOAD_EXIT${RESET}"
+            echo -e "${RED}$ROM_OUTPUT${RESET}"
+        fi
+    else
+        echo -e "${YELLOW}ROM not found in $BUILD_DIR${RESET}"
+        echo -e "${YELLOW}Upload skipped${RESET}"
+        return 1
+    fi
+
+    print_header "Upload complete"
+    echo -e "${CYAN}ROM:${RESET}${ROM_NAME:-N/A}"
+    echo -e "${CYAN}Size:${RESET}${ROM_SIZE:-N/A}"
+    if [ -n "$ROM_URL" ]; then
+        echo -e "${CYAN}Link:${RESET}$ROM_URL"
+    fi
+    if [ -n "$ROM_SHA256" ]; then
+        echo -e "${CYAN}SHA256:${RESET}$ROM_SHA256"
+    fi
+
+    [ -n "$ROM_URL" ] && return 0 || return 1
+}; upload
