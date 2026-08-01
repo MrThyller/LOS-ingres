@@ -261,23 +261,6 @@ install_aurorastore() {
 
 #####################################
 #----------------------------------#
-# Apps de privacidade a incluir no build
-# Comente qualquer linha para pular aquele app
-#----------------------------------#
-#####################################
-
-# Orquestra a instalação de todos os apps de privacidade prebuilt.
-add_privacy_apps() {
-    clear
-    install_duckduckgo
-    install_thunderbird
-    install_aurorastore
-    print_header "Privacy apps step complete"
-}
-
-
-#####################################
-#----------------------------------#
 # Diretório de trabalho do LineageOS-MicroG
 #----------------------------------#
 #####################################
@@ -425,11 +408,18 @@ rgapps() {
     print_header "GApps disable pass complete"
 }; rgapps
 
-clear
+#####################################
+#----------------------------------#
+# Patches e Apps Extras
+#----------------------------------#
 patch_signature_spoofing
-patch_version_mk
+patch_version_mk; clear
+install_duckduckgo
+install_thunderbird
+install_aurorastore
+gofile_install; clear
+##################################### FIM DO BLOCO
 
-clear
 echo -e "${CYAN}Setting up build environment...${RESET}"
 source build/envsetup.sh
 export BUILD_USERNAME=WhoFoss
