@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
 # Autor       : WhoFoss <https://github.com/WhoFoss>
-# Programa    : los22.sh
+# Programa    : who.sh
 # DESCRIÇÃO   :
 # Script de build automatizado para compilar o LineageOS 22.2 com MicroG
 # integrado, voltado para o Xiaomi Redmi Note 13 4G (codename: sapphire,
 # SM6225/Snapdragon 685). Cuida da limpeza de repositórios antigos, repo
 # init/sync, clone de device tree/HALs/pacotes modificados, manifest local
 # do MicroG, patches (signature spoofing, sufixo de versão), instalação de
-# apps de privacidade, integração do ViPER4AndroidFX, remoção de GApps
-# stock, preparo do ambiente de build e upload do ROM final via GoFile.
+# apps de privacidade, remoção de GApps
+# stock, preparo do ambiente de build e upload da ROM final via GoFile.
 #
 # Dependências:
 #   - git
@@ -23,7 +23,6 @@
 #   - Manifest local do MicroG
 #   - Patch de Signature Spoofing e sufixo de versão MicroG
 #   - Instalação de apps de privacidade (DuckDuckGo, Thunderbird, AuroraStore)
-#   - Integração do ViPER4AndroidFX
 #   - Desativação de GApps stock (rgapps)
 #   - Upload automático do ROM via GoFile
 #
@@ -100,7 +99,6 @@ cleanup_repos() {
     rm -rf hardware/qcom-caf/common
     rm -rf packages/apps/ThemePicker
     rm -rf vendor/lineage
-  # rm -rf frameworks/base
     print_header "Cleanup completed"
 }
 
@@ -349,7 +347,6 @@ clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Updater" "l
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_ThemePicker" "lineage-22.2" "packages/apps/ThemePicker"
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Trebuchet" "lineage-22.2" "packages/apps/Trebuchet"
 clone_repo "https://github.com/sapphire-sm6225/android_vendor_lineage.git" "lineage-22.2" "vendor/lineage"
-#clone_repo "https://github.com/sapphire-sm6225/android_frameworks_base.git" "lineage-22.2" "frameworks/base"
 print_header "Vendor lineage cloned"
 print_header "Modified packages cloned"
 echo && clear
