@@ -205,7 +205,7 @@ install_duckduckgo() {
     echo -e "${CYAN}Cloning DuckDuckGo prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/duckduckgo
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/duckduckgo/DuckDuckGo.apk \
-        "https://f-droid.org/repo/com.duckduckgo.mobile.android_52850000.apk" \
+        "https://f-droid.org/repo/com.duckduckgo.mobile.android_52911000.apk" \
         || { echo "[ERRO] Falha ao baixar DuckDuckGo.apk"; return 1; }
 
     cat > device/xiaomi/sapphire/prebuilt/duckduckgo/Android.bp << 'EOF'
@@ -248,6 +248,29 @@ EOF
     add_to_device_mk "Thunderbird"
 }
 
+# Baixa o APK do Ontainium e gera o Android.bp para importação prebuilt.
+install_obtainium() {
+    echo -e "${CYAN}Cloning Obtainium prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/obtainium
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/obtainium/Obtainium.apk \
+        "https://f-droid.org/repo/dev.imranr.obtainium.fdroid_23493.apk" \
+        || { echo "[ERRO] Falha ao baixar Obtainium.apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
+android_app_import {
+    name: "Obtainium",
+    apk: "Obtainium.apk",
+    presigned: true,
+    preprocessed: true,
+    dex_preopt: {
+        enabled: false,
+    },
+}
+EOF
+    print_header "Obtainium prebuilt cloned to device/xiaomi/sapphire/prebuilt/obtainium"
+    add_to_device_mk "Obtainium"
+}
+
 # Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
 install_aurorastore() {
     echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
@@ -273,6 +296,7 @@ add_privacy_apps() {
     clear
     install_duckduckgo
     install_thunderbird
+    install_obtainium
     install_aurorastore
     print_header "Privacy apps step complete"
 }
