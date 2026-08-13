@@ -230,7 +230,7 @@ install_thunderbird() {
     echo -e "${CYAN}Cloning Thunderbird prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/thunderbird
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/thunderbird/Thunderbird.apk \
-        "https://f-droid.org/repo/net.thunderbird.android_23.apk" \
+        "https://f-droid.org/repo/net.thunderbird.android_29.apk" \
         || { echo "[ERRO] Falha ao baixar Thunderbird.apk"; return 1; }
 
     cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
