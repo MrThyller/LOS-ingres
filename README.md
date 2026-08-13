@@ -1,6 +1,6 @@
 ### Script automatizado
 ```
-curl -fsSL https://raw.githubusercontent.com/WhoFoss/Build-LineageOS-MicroG/refs/heads/main/LineageOS-22.2/los.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tenorio-md/LOSMG-ImortalSapphire/refs/heads/main/LineageOS-22.2/losmg-sapphire.sh | bash
 ```
 
 ### Gofile upload
@@ -12,6 +12,6 @@ curl -s https://raw.githubusercontent.com/saroj-nokia/GoFile-Upload/refs/heads/m
 
 ---
 
-<summary>Versão mais recente disponível: </summary>
+<summary>Versão mais recente disponível (WhoFoss SourceForge): </summary>
 <br/>
 <a href="https://sourceforge.net/projects/whofoss/files/sapphire/LineageOS-23.2/MicroG/"><img src="https://img.shields.io/badge/Download-191724?style=for-the-badge&logo=lineageos&logoColor=white"/></a><a href="https://microg.org/">
