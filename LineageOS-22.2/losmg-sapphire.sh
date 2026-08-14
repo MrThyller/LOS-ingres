@@ -200,18 +200,18 @@ endif' "$version_mk"
     fi
 }
 
-# Baixa o APK do DuckDuckGo e gera o Android.bp para importação prebuilt.
-install_duckduckgo() {
-    echo -e "${CYAN}Cloning DuckDuckGo prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/duckduckgo
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/duckduckgo/DuckDuckGo.apk \
-        "https://f-droid.org/repo/com.duckduckgo.mobile.android_52911000.apk" \
-        || { echo "[ERRO] Falha ao baixar DuckDuckGo.apk"; return 1; }
+# Baixa o APK do IronFox e gera o Android.bp para importação prebuilt.
+install_ironfox() {
+    echo -e "${CYAN}Cloning IronFox prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/ironfox
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/ironfox/IronFox.apk \
+        "https://fdroid.ironfoxoss.org/fdroid/repo/ironfox-153.0.4-arm64-v8a.apk" \
+        || { echo "[ERRO] Falha ao baixar IronFox.apk"; return 1; }
 
-    cat > device/xiaomi/sapphire/prebuilt/duckduckgo/Android.bp << 'EOF'
+    cat > device/xiaomi/sapphire/prebuilt/ironfox/Android.bp << 'EOF'
 android_app_import {
-    name: "DuckDuckGo",
-    apk: "DuckDuckGo.apk",
+    name: "IronFox",
+    apk: "IronFox.apk",
     presigned: true,
     preprocessed: true,
     product_specific: true,
@@ -221,8 +221,8 @@ android_app_import {
     overrides: ["Browser2", "Jelly"],
 }
 EOF
-    print_header "DuckDuckGo prebuilt cloned to device/xiaomi/sapphire/prebuilt/duckduckgo"
-    add_to_device_mk "DuckDuckGo"
+    print_header "IronFox prebuilt cloned to device/xiaomi/sapphire/prebuilt/ironfox"
+    add_to_device_mk "IronFox"
 }
 
 # Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
@@ -247,16 +247,15 @@ EOF
     print_header "Thunderbird prebuilt cloned to device/xiaomi/sapphire/prebuilt/thunderbird"
     add_to_device_mk "Thunderbird"
 }
-
-# Baixa o APK do Ontainium e gera o Android.bp para importação prebuilt.
+# Baixa o APK do Obtainium e gera o Android.bp para importação prebuilt.
 install_obtainium() {
     echo -e "${CYAN}Cloning Obtainium prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/obtainium
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/obtainium/Obtainium.apk \
-        "https://f-droid.org/repo/dev.imranr.obtainium.fdroid_23493.apk" \
+        "https://apt.izzysoft.de/fdroid/repo/dev.imranr.obtainium_23493.apk" \
         || { echo "[ERRO] Falha ao baixar Obtainium.apk"; return 1; }
 
-    cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
+    cat > device/xiaomi/sapphire/prebuilt/obtainium/Android.bp << 'EOF'
 android_app_import {
     name: "Obtainium",
     apk: "Obtainium.apk",
@@ -294,10 +293,10 @@ install_aurorastore() {
 # Orquestra a instalação de todos os apps de privacidade prebuilt.
 add_privacy_apps() {
     clear
-    install_duckduckgo
+    install_ironfox
     install_thunderbird
-    install_obtainium
     install_aurorastore
+    install_obtainium
     print_header "Privacy apps step complete"
 }
 
