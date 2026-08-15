@@ -200,18 +200,18 @@ endif' "$version_mk"
     fi
 }
 
-# Baixa o APK do Fennec (F-Droid) e gera o Android.bp para importação prebuilt.
-install_fennec() {
-    echo -e "${CYAN}Cloning Fennec prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/fennec
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/fennec/Fennec.apk \
-        "https://f-droid.org/repo/org.mozilla.fennec_fdroid_1530320.apk" \
-        || { echo "[ERRO] Falha ao baixar Fennec.apk"; return 1; }
+# Baixa o APK do DuckDuckGo e gera o Android.bp para importação prebuilt.
+install_duckduckgo() {
+    echo -e "${CYAN}Cloning DuckDuckGo prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/duckduckgo
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/duckduckgo/DuckDuckGo.apk \
+        "https://f-droid.org/repo/com.duckduckgo.mobile.android_52850000.apk" \
+        || { echo "[ERRO] Falha ao baixar DuckDuckGo.apk"; return 1; }
 
-    cat > device/xiaomi/sapphire/prebuilt/fennec/Android.bp << 'EOF'
+    cat > device/xiaomi/sapphire/prebuilt/duckduckgo/Android.bp << 'EOF'
 android_app_import {
-    name: "Fennec",
-    apk: "Fennec.apk",
+    name: "DuckDuckGo",
+    apk: "DuckDuckGo.apk",
     presigned: true,
     preprocessed: true,
     product_specific: true,
@@ -221,8 +221,8 @@ android_app_import {
     overrides: ["Browser2", "Jelly"],
 }
 EOF
-    print_header "Fennec prebuilt cloned to device/xiaomi/sapphire/prebuilt/fennec"
-    add_to_device_mk "Fennec"
+    print_header "DuckDuckGo prebuilt cloned to device/xiaomi/sapphire/prebuilt/duckduckgo"
+    add_to_device_mk "DuckDuckGo"
 }
 
 # Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
