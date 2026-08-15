@@ -200,18 +200,18 @@ endif' "$version_mk"
     fi
 }
 
-# Baixa o APK do IronFox e gera o Android.bp para importação prebuilt.
-install_ironfox() {
-    echo -e "${CYAN}Cloning IronFox prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/ironfox
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/ironfox/IronFox.apk \
-        "https://fdroid.ironfoxoss.org/fdroid/repo/ironfox-153.0.4-arm64-v8a.apk" \
-        || { echo "[ERRO] Falha ao baixar IronFox.apk"; return 1; }
+# Baixa o APK do Fennec (F-Droid) e gera o Android.bp para importação prebuilt.
+install_fennec() {
+    echo -e "${CYAN}Cloning Fennec prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/fennec
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/fennec/Fennec.apk \
+        "https://f-droid.org/repo/org.mozilla.fennec_fdroid_1530320.apk" \
+        || { echo "[ERRO] Falha ao baixar Fennec.apk"; return 1; }
 
-    cat > device/xiaomi/sapphire/prebuilt/ironfox/Android.bp << 'EOF'
+    cat > device/xiaomi/sapphire/prebuilt/fennec/Android.bp << 'EOF'
 android_app_import {
-    name: "IronFox",
-    apk: "IronFox.apk",
+    name: "Fennec",
+    apk: "Fennec.apk",
     presigned: true,
     preprocessed: true,
     product_specific: true,
@@ -221,8 +221,8 @@ android_app_import {
     overrides: ["Browser2", "Jelly"],
 }
 EOF
-    print_header "IronFox prebuilt cloned to device/xiaomi/sapphire/prebuilt/ironfox"
-    add_to_device_mk "IronFox"
+    print_header "Fennec prebuilt cloned to device/xiaomi/sapphire/prebuilt/fennec"
+    add_to_device_mk "Fennec"
 }
 
 # Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
