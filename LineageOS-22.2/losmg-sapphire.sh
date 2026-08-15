@@ -270,6 +270,61 @@ EOF
     add_to_device_mk "Obtainium"
 }
 
+# Baixa o APK do Davx⁵ e gera o Android.bp para importação prebuilt.
+install_davx5() {
+    echo -e "${CYAN}Baixando DAVx5 (v4.5.19-ose)...${RESET}"
+
+    local target_dir="device/xiaomi/sapphire/prebuilt/davx5"
+    mkdir -p "$target_dir"
+
+    wget -q --show-progress -O "$target_dir/DAVx5.apk" \
+        "https://f-droid.org/repo/at.bitfire.davdroid_405190003.apk" \
+        || { echo "[ERRO] Falha ao baixar DAVx5.apk"; return 1; }
+
+    cat > "$target_dir/Android.bp" << 'EOF'
+android_app_import {
+    name: "DAVx5",
+    apk: "DAVx5.apk",
+    presigned: true,
+    preprocessed: true,
+    product_specific: true,
+    dex_preopt: {
+        enabled: false,
+    },
+}
+EOF
+
+    print_header "DAVx5 prebuilt baixado para $target_dir"
+    add_to_device_mk "DAVx5"
+}
+
+# Baixa o APK do Auxio e gera o Android.bp para importação prebuilt.
+install_auxio() {
+    mkdir -p device/xiaomi/sapphire/prebuilt/auxio
+    
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/auxio/Auxio.apk \
+        "https://f-droid.org/repo/org.oxycblt.auxio_75.apk" \
+        || { echo -e "${RED}[ERRO] Falha ao baixar Auxio.apk${RESET}"; return 1; }
+    
+    cat > device/xiaomi/sapphire/prebuilt/auxio/Android.bp << 'EOF'
+android_app_import {
+    name: "Auxio",
+    apk: "Auxio.apk",
+    presigned: true,
+    preprocessed: true,
+    product_specific: true,
+    dex_preopt: {
+        enabled: false,
+    },
+    overrides: ["Twelve", "Music", "Eleven"],
+}
+EOF
+    
+    add_to_device_mk "Auxio"
+    
+    echo -e "${GREEN}Auxio instalado com sucesso em device/xiaomi/sapphire/prebuilt/auxio/${RESET}"
+}
+
 # Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
 install_aurorastore() {
     echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
@@ -297,6 +352,8 @@ add_privacy_apps() {
     install_thunderbird
     install_aurorastore
     install_obtainium
+    install_davx5
+    install_auxio
     print_header "Privacy apps step complete"
 }
 
