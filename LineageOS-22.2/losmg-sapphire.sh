@@ -348,7 +348,7 @@ install_aurorastore() {
 # Orquestra a instalação de todos os apps de privacidade prebuilt.
 add_privacy_apps() {
     clear
-    install_ironfox
+    install_duckduckgo
     install_thunderbird
     install_aurorastore
     install_obtainium
