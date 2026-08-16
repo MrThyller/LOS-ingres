@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
 # Autor       : WhoFoss <https://github.com/WhoFoss>
-# Programa    : los22.sh
+# Programa    : losmg.sh
 # DESCRIÇÃO   :
 # Script de build automatizado para compilar o LineageOS 22.2 com MicroG
 # integrado, voltado para o Xiaomi Redmi Note 13 4G (codename: sapphire,
@@ -643,8 +643,8 @@ add_privacy_apps
 clear
 echo -e "${CYAN}Setting up build environment...${RESET}"
 source build/envsetup.sh
-export BUILD_USERNAME=WhoFoss
-export BUILD_HOSTNAME=los22
+export BUILD_USERNAME=Tenório
+export BUILD_HOSTNAME=Imortal-LineageOS
 export SKIP_ABI_CHECKS=true
 export WITH_GMS=true
 mkdir -p out/target/product/sapphire/obj/KERNEL_OBJ/usr
