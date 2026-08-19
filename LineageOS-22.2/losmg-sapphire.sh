@@ -90,7 +90,7 @@ print_header() {
     echo -e "${color}${border}${RESET}"
 }
 
-# Remove diretórios de pacotes/device tree que serão reclonados do zero.
+# Remove diretórios de pacotes/device tree que serão reclonados do zero. Alguns foram desativados para corrigir bugs
 cleanup_repos() {
     echo -e "${YELLOW}Performing cleanup...${RESET}"
     rm -rf .repo/local_manifests/
