@@ -281,31 +281,26 @@ EOF
 }
 
 # Baixa o APK do Davx⁵ e gera o Android.bp para importação prebuilt.
-install_davx5() {
-    echo -e "${CYAN}Baixando DAVx5 (v4.5.19-ose)...${RESET}"
+install_syncthingfork() {
+    echo -e "${CYAN}Cloning Syncthingfork prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/syncthingfork
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/syncthingfork/Syncthingfork.apk \
+        "https://f-droid.org/repo/com.github.catfriend1.syncthingfork_2010300.apk" \
+        || { echo "[ERRO] Falha ao baixar Syncthingfork.apk"; return 1; }
 
-    local target_dir="device/xiaomi/sapphire/prebuilt/davx5"
-    mkdir -p "$target_dir"
-
-    wget -q --show-progress -O "$target_dir/DAVx5.apk" \
-        "https://f-droid.org/repo/at.bitfire.davdroid_405190003.apk" \
-        || { echo "[ERRO] Falha ao baixar DAVx5.apk"; return 1; }
-
-    cat > "$target_dir/Android.bp" << 'EOF'
+    cat > device/xiaomi/sapphire/prebuilt/syncthingfork/Android.bp << 'EOF'
 android_app_import {
-    name: "DAVx5",
-    apk: "DAVx5.apk",
+    name: "Syncthingfork",
+    apk: "Syncthingfork.apk",
     presigned: true,
     preprocessed: true,
-    product_specific: true,
     dex_preopt: {
         enabled: false,
     },
 }
 EOF
-
-    print_header "DAVx5 prebuilt baixado para $target_dir"
-    add_to_device_mk "DAVx5"
+    print_header "Syncthingfork prebuilt cloned to device/xiaomi/sapphire/prebuilt/syncthingfork"
+    add_to_device_mk "Syncthingfork"
 }
 
 # Baixa o APK do Auxio e gera o Android.bp para importação prebuilt.
@@ -362,135 +357,9 @@ add_privacy_apps() {
     install_thunderbird
     install_aurorastore
     install_obtainium
-    install_davx5
+    install_syncthingfork
     install_auxio
     print_header "Privacy apps step complete"
-}
-
-# Integra o ViPER4AndroidFX (TogoFire) no device tree do sapphire:
-# clona o repo, registra o inherit-product, adiciona library/effect no
-# audio_effects.xml e cria as regras de sepolicy do audioserver.
-integrar_viperfx() {
-clear
-    local ROOT_DIR="${ANDROID_ROOT:-$(pwd)}"
-    local V4A_REPO="https://github.com/TogoFire/packages_apps_ViPER4AndroidFX"
-    local V4A_BRANCH="v4a"
-    local V4A_DIR="$ROOT_DIR/packages/apps/ViPER4AndroidFX"
-    local DEVICE_MK="$ROOT_DIR/device/xiaomi/sapphire/device.mk"
-    local AUDIO_EFFECTS_XML="$ROOT_DIR/device/xiaomi/sapphire/configs/audio/audio_effects.xml"
-    local AUDIOSERVER_TE="$ROOT_DIR/device/xiaomi/sapphire/sepolicy/vendor/audioserver.te"
-
-    echo "=== Iniciando integracao do ViPER4AndroidFX ==="
-
-    # 1. Clonar o repo (ou atualizar se ja existir)
-    if [ -d "$V4A_DIR" ]; then
-        echo "[AVISO] $V4A_DIR ja existe, pulando clone"
-    else
-        git clone --depth 1 -b "$V4A_BRANCH" "$V4A_REPO" "$V4A_DIR"
-        if [ $? -ne 0 ]; then
-            echo "[ERRO] Falha ao clonar o repositorio do ViperFX"
-            return 1
-        fi
-        echo "[OK] Repositorio clonado em $V4A_DIR"
-    fi
-
-    # 2. Adicionar inherit-product no device.mk (idempotente)
-    if [ ! -f "$DEVICE_MK" ]; then
-        echo "[ERRO] device.mk nao encontrado em $DEVICE_MK"
-        return 1
-    fi
-
-    if grep -q "ViPER4AndroidFX/config.mk" "$DEVICE_MK"; then
-        echo "[AVISO] inherit-product do ViperFX ja presente no device.mk"
-    else
-        echo "" >> "$DEVICE_MK"
-        echo "# ViPER4AndroidFX" >> "$DEVICE_MK"
-        echo '$(call inherit-product, packages/apps/ViPER4AndroidFX/config.mk)' >> "$DEVICE_MK"
-        echo "[OK] inherit-product adicionado ao device.mk"
-    fi
-
-    # 3. Registrar library/effect no audio_effects.xml (idempotente)
-    if [ ! -f "$AUDIO_EFFECTS_XML" ]; then
-        echo "[ERRO] audio_effects.xml nao encontrado em $AUDIO_EFFECTS_XML"
-        return 1
-    fi
-
-    if grep -q "v4a_re" "$AUDIO_EFFECTS_XML"; then
-        echo "[AVISO] entradas do ViperFX ja presentes no audio_effects.xml"
-    else
-        if grep -q "</libraries>" "$AUDIO_EFFECTS_XML"; then
-            sed -i 's|</libraries>|    <library name="v4a_re" path="libv4a_re.so"/>\n</libraries>|' "$AUDIO_EFFECTS_XML"
-            echo "[OK] library v4a_re adicionada ao audio_effects.xml"
-        else
-            echo "[ERRO] tag </libraries> nao encontrada, edite manualmente o audio_effects.xml"
-            return 1
-        fi
-
-        if grep -q "</effects>" "$AUDIO_EFFECTS_XML"; then
-            sed -i 's|</effects>|    <effect name="v4a_standard_re" library="v4a_re" uuid="90380da3-8536-4744-a6a3-5731970e640f"/>\n</effects>|' "$AUDIO_EFFECTS_XML"
-            echo "[OK] effect v4a_standard_re adicionado ao audio_effects.xml"
-        else
-            echo "[ERRO] tag </effects> nao encontrada, edite manualmente o audio_effects.xml"
-            return 1
-        fi
-    fi
-
-    # 4. Criar/atualizar audioserver.te com as regras de sepolicy
-    mkdir -p "$(dirname "$AUDIOSERVER_TE")"
-
-    if [ -f "$AUDIOSERVER_TE" ] && grep -q "ViperFX" "$AUDIOSERVER_TE"; then
-        echo "[AVISO] regras do ViperFX ja presentes no audioserver.te"
-    else
-        {
-            echo ""
-            echo "# ViperFX / ViPER4Android FX"
-            echo "get_prop(audioserver, vendor_audio_prop)"
-            echo "allow audioserver unlabeled:file { read write open getattr };"
-            echo "allow hal_audio_default hal_audio_default:process { execmem };"
-        } >> "$AUDIOSERVER_TE"
-        echo "[OK] regras de sepolicy adicionadas em $AUDIOSERVER_TE"
-    fi
-
-# Desativa o A2DP hardware offload via vendor.prop (necessário para o
-# ViperFX funcionar corretamente no Bluetooth).
-desativar_a2dp_offload() {
-    local ROOT_DIR="${ANDROID_ROOT:-$(pwd)}"
-    local VENDOR_PROP
-    local PROP_KEY="persist.bluetooth.a2dp_offload.disabled"
-    local EXPECTED_VALUE="true"
-
-    VENDOR_PROP=$(find "$ROOT_DIR/device/xiaomi" -iname "vendor.prop" 2>/dev/null | head -n 1)
-
-    if [ -z "$VENDOR_PROP" ]; then
-        echo "[ERRO] vendor.prop nao encontrado em device/xiaomi"
-        return 1
-    fi
-
-    if ! grep -q "^${PROP_KEY}=" "$VENDOR_PROP"; then
-        echo "[AVISO] ${PROP_KEY} nao encontrada, edite manualmente $VENDOR_PROP"
-        return 1
-    fi
-
-    if grep -q "^${PROP_KEY}=${EXPECTED_VALUE}$" "$VENDOR_PROP"; then
-        echo "[AVISO] offload A2DP ja desativado em $VENDOR_PROP"
-        return 0
-    fi
-
-    sed -i "s/^${PROP_KEY}=.*/${PROP_KEY}=${EXPECTED_VALUE}/" "$VENDOR_PROP"
-
-    if grep -q "^${PROP_KEY}=${EXPECTED_VALUE}$" "$VENDOR_PROP"; then
-        echo "[OK] offload A2DP desativado em $VENDOR_PROP"
-        return 0
-    else
-        echo "[ERRO] falha ao desativar offload A2DP em $VENDOR_PROP"
-        return 1
-    fi
-}
-# Desativar A2DP hw offload (necessario para ViperFX funcionar via Bluetooth)
-#  desativar_a2dp_offload || return 1
-    echo "=== Integracao do ViPER4AndroidFX concluida ==="
-    echo "[AVISO] Regras de sepolicy sao um ponto de partida - valide com setenforce 0 + dmesg | grep avc"
-    return 0
 }
 
 #####################################
@@ -558,16 +427,28 @@ echo -e "${RED}Syncing full repo...${RESET}"
 repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune || error_exit "Repo sync failed"
 print_header "Repo sync success"
 
-echo -e "${RED}Cloning modified packages...${RESET}"
+# ========================================
+# Modified Packages
+# Clone custom packages and vendor repositories
+# ========================================
+
+clone_modified_packages()
+{
+############## Função desabilitada
+echo -e "${YELLOW}Cloning modified packages...${RESET}"
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Settings" "lineage-22.2" "packages/apps/Settings"
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Updater" "lineage-22.2" "packages/apps/Updater"
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_ThemePicker" "lineage-22.2" "packages/apps/ThemePicker"
 clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Trebuchet" "lineage-22.2" "packages/apps/Trebuchet"
 clone_repo "https://github.com/sapphire-sm6225/android_vendor_lineage.git" "lineage-22.2" "vendor/lineage"
-#clone_repo "https://github.com/sapphire-sm6225/android_frameworks_base.git" "lineage-22.2" "frameworks/base"
 print_header "Vendor lineage cloned"
-print_header "Modified packages cloned"
-echo && clear
+print_header "Modified packages cloned" && clear
+}
+
+# ========================================
+# Qualcomm HALs
+# Clone the required SM6225 hardware components
+# ========================================
 echo -e "${RED}Cloning HALs for SM6225...${RESET}"
 clone_hal "https://github.com/sapphire-sm6225/android_hardware_qcom-caf_common.git" "hardware/qcom-caf/common" "lineage-22.2"
 clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_agm.git" "hardware/qcom-caf/sm6225/audio/agm" "lineage-22.2-caf-sm6225"
@@ -578,8 +459,7 @@ clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_display.git" "hardwa
 clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_media.git" "hardware/qcom-caf/sm6225/media" "lineage-22.0-caf-sm6225"
 clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_audio.git" "hardware/qcom-caf/sm6225/audio/primary-hal" "lineage-22.0-caf-sm6225"
 clone_hal "https://github.com/sapphire-sm6225/device_qcom_sepolicy_vndr.git" "device/qcom/sepolicy_vndr/sm6225" "lineage-22.0-caf-sm6225"
-print_header "HALs cloned"
-clear
+print_header "HALs cloned" && clear
 
 # Instala o script de upload do GoFile e cria o alias "gofile" no bashrc.
 gofile_install(){
@@ -644,7 +524,6 @@ rgapps() {
 }; rgapps
 
 clear
-# integrar_viperfx
 patch_signature_spoofing
 patch_version_mk
 echo
@@ -653,8 +532,8 @@ add_privacy_apps
 clear
 echo -e "${CYAN}Setting up build environment...${RESET}"
 source build/envsetup.sh
-export BUILD_USERNAME=Tenório
-export BUILD_HOSTNAME=Imortal-LineageOS
+export BUILD_USERNAME="C. Tenório"
+export BUILD_HOSTNAME=Imortal-LOSMG
 export SKIP_ABI_CHECKS=true
 export WITH_GMS=true
 mkdir -p out/target/product/sapphire/obj/KERNEL_OBJ/usr
