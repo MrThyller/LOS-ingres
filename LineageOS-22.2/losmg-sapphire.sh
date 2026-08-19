@@ -94,12 +94,12 @@ print_header() {
 cleanup_repos() {
     echo -e "${YELLOW}Performing cleanup...${RESET}"
     rm -rf .repo/local_manifests/
-    rm -rf packages/apps/Trebuchet
-    rm -rf packages/apps/Updater
-    rm -rf packages/apps/Settings
+    # rm -rf packages/apps/Trebuchet
+    # rm -rf packages/apps/Updater
+    # rm -rf packages/apps/Settings
     rm -rf hardware/qcom-caf/common
-    rm -rf packages/apps/ThemePicker
-    rm -rf vendor/lineage
+    # rm -rf packages/apps/ThemePicker
+    # rm -rf vendor/lineage
   # rm -rf frameworks/base
     print_header "Cleanup completed"
 }
