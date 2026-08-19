@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
-# Autor       : WhoFoss <https://github.com/WhoFoss> & Tenório <https://github.com/tenorio-md> 
+# Autor       : WhoFoss <https://github.com/WhoFoss> & Tenório <https://github.com/tenorio-md>
 # Programa    : los22.sh
 # DESCRIÇÃO   :
 # Script de build automatizado para compilar o LineageOS 22.2 com MicroG
