@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
 # Autor do Fork                     : Tenório <https://github.com/tenorio-md>
-# Autor original e creditos         : WhoFoss <https://github.com/WhoFoss>
+# Autor original e créditos         : WhoFoss <https://github.com/WhoFoss>
 # Programa    : losmg.sh
 # DESCRIÇÃO   :
 # Script de build automatizado para compilar o LineageOS 22.2 com MicroG
