@@ -263,7 +263,7 @@ install_obtainium() {
     echo -e "${CYAN}Cloning Obtainium prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/obtainium
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/obtainium/Obtainium.apk \
-        "https://f-droid.org/repo/dev.imranr.obtainium.fdroid_23493.apk" \
+        "https://github.com/ImranR98/Obtainium/releases/download/v1.6.11/app-arm64-v8a-release.apk" \
         || { echo "[ERRO] Falha ao baixar Obtainium.apk"; return 1; }
 
     cat > device/xiaomi/sapphire/prebuilt/obtainium/Android.bp << 'EOF'
