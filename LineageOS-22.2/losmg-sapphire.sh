@@ -333,29 +333,6 @@ EOF
     add_to_device_mk "FutoKeyboard"
 }
 
-# Baixa o APK do KeePassDX e gera o Android.bp para importação prebuilt.
-install_keepassdx() {
-    echo -e "${CYAN}Cloning Thunderbird prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/keepassdx
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/keepassdx/KeePassDX.apk \
-        "https://github.com/Kunzisoft/KeePassDX/releases/download/4.4.5/KeePassDX-4.4.5-libre.apk" \
-        || { echo "[ERRO] Falha ao baixar KeePassDX.apk"; return 1; }
-
-    cat > device/xiaomi/sapphire/prebuilt/keepassdx/Android.bp << 'EOF'
-android_app_import {
-    name: "KeePassDX",
-    apk: "KeePassDX.apk",
-    presigned: true,
-    preprocessed: true,
-    dex_preopt: {
-        enabled: false,
-    },
-}
-EOF
-    print_header "KeePassDX prebuilt cloned to device/xiaomi/sapphire/prebuilt/keepassdx"
-    add_to_device_mk "KeePassDX"
-}
-
 # Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
 install_aurorastore() {
     echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
@@ -385,7 +362,6 @@ add_privacy_apps() {
     install_obtainium
     install_auxio
     install_futokeyboard
-    install_keepassdx
     print_header "Privacy apps step complete"
 }
 
