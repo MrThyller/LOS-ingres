@@ -307,6 +307,31 @@ EOF
     echo -e "${GREEN}Auxio instalado com sucesso em device/xiaomi/sapphire/prebuilt/auxio/${RESET}"
 }
 
+# Baixa o APK do FutoKeyboard e gera o Android.bp para importação prebuilt.
+install_futokeyboard() {
+    echo -e "${CYAN}Cloning FutoKeyboard prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/futokeyboard
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/futokeyboard/FutoKeyboard.apk \
+        "https://github.com/futo-org/android-keyboard/releases/download/0.1.30/keyboard-0.1.30.apk" \
+        || { echo "[ERRO] Falha ao baixar FutoKeyboard.apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/futokeyboard/Android.bp << 'EOF'
+android_app_import {
+    name: "FutoKeyboard",
+    apk: "FutoKeyboard.apk",
+    presigned: true,
+    preprocessed: true,
+    product_specific: true,
+    dex_preopt: {
+        enabled: false,
+    },
+    overrides: ["LatinIME"],
+}
+EOF
+    print_header "FutoKeyboard prebuilt cloned to device/xiaomi/sapphire/prebuilt/futokeyboard"
+    add_to_device_mk "FutoKeyboard"
+}
+
 # Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
 install_aurorastore() {
     echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
@@ -335,6 +360,7 @@ add_privacy_apps() {
     install_aurorastore
     install_obtainium
     install_auxio
+    install_futokeyboard
     print_header "Privacy apps step complete"
 }
 
