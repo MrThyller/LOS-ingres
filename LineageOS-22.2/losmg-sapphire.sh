@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
-# Autor       : WhoFoss <https://github.com/WhoFoss>
+# Autor do Fork                     : Tenório <https://github.com/tenorio-md>
+# Autor original e creditos         : WhoFoss <https://github.com/WhoFoss>
 # Programa    : losmg.sh
 # DESCRIÇÃO   :
 # Script de build automatizado para compilar o LineageOS 22.2 com MicroG
@@ -22,8 +23,7 @@
 #   - Clone de device tree, HALs e pacotes modificados
 #   - Manifest local do MicroG
 #   - Patch de Signature Spoofing e sufixo de versão MicroG
-#   - Instalação de apps de privacidade (DuckDuckGo, Thunderbird, AuroraStore)
-#   - Integração do ViPER4AndroidFX
+#   - Instalação de apps de privacidade (Titanium, Thunderbird, AuroraStore)
 #   - Desativação de GApps stock (rgapps)
 #   - Upload automático do ROM via GoFile
 #
