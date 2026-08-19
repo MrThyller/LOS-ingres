@@ -308,7 +308,7 @@ EOF
     echo -e "${GREEN}Auxio instalado com sucesso em device/xiaomi/sapphire/prebuilt/auxio/${RESET}"
 }
 
-# Baixa o APK do FutoKeyboard e gera o Android.bp para importação prebuilt.
+# Baixa o APK do FUTO Keyboard e gera o Android.bp para importação prebuilt.
 install_futokeyboard() {
     echo -e "${CYAN}Cloning FutoKeyboard prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/futokeyboard
