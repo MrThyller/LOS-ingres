@@ -280,29 +280,6 @@ EOF
     add_to_device_mk "Obtainium"
 }
 
-# Baixa o APK do Davx⁵ e gera o Android.bp para importação prebuilt.
-install_syncthingfork() {
-    echo -e "${CYAN}Cloning Syncthingfork prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/syncthingfork
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/syncthingfork/Syncthingfork.apk \
-        "https://f-droid.org/repo/com.github.catfriend1.syncthingfork_2010300.apk" \
-        || { echo "[ERRO] Falha ao baixar Syncthingfork.apk"; return 1; }
-
-    cat > device/xiaomi/sapphire/prebuilt/syncthingfork/Android.bp << 'EOF'
-android_app_import {
-    name: "Syncthingfork",
-    apk: "Syncthingfork.apk",
-    presigned: true,
-    preprocessed: true,
-    dex_preopt: {
-        enabled: false,
-    },
-}
-EOF
-    print_header "Syncthingfork prebuilt cloned to device/xiaomi/sapphire/prebuilt/syncthingfork"
-    add_to_device_mk "Syncthingfork"
-}
-
 # Baixa o APK do Auxio e gera o Android.bp para importação prebuilt.
 install_auxio() {
     mkdir -p device/xiaomi/sapphire/prebuilt/auxio
@@ -357,7 +334,6 @@ add_privacy_apps() {
     install_thunderbird
     install_aurorastore
     install_obtainium
-    install_syncthingfork
     install_auxio
     print_header "Privacy apps step complete"
 }
