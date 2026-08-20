@@ -509,7 +509,7 @@ add_privacy_apps
 clear
 echo -e "${CYAN}Setting up build environment...${RESET}"
 source build/envsetup.sh
-export BUILD_USERNAME="C. Tenório"
+export BUILD_USERNAME=Tenório
 export BUILD_HOSTNAME=Imortal-LOSMG
 export SKIP_ABI_CHECKS=true
 export WITH_GMS=true
