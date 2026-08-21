@@ -114,7 +114,7 @@ init_lineage() {
 first_sync() {
     echo -e "${RED}Starting initial LineageOS sync...${RESET}"
 
-    repo sync \
+    repo sync -j"$(nproc --all)" \
         || error_exit "Initial repo sync failed"
 
     print_header "Initial LineageOS sync complete"
@@ -273,7 +273,7 @@ EOF
 first_sync() {
     echo -e "${RED}Starting sync...${RESET}"
 
-    repo sync --force-sync \
+    repo sync --force-sync -j"$(nproc --all)" \
         || error_exit "sync failed"
 
     print_header "sync complete"
