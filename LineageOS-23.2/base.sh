@@ -288,7 +288,7 @@ setup_lineage_dir() {
 #####################################
 check_repo_valid
 setup_lineage_dir
-cd "$HOME/LineageOS-MG" || error_exit "Failed to cd to LineageOS23.2-MG"
+cd "$HOME/LineageOS-MG" || error_exit "Failed to cd to LineageOS-MG"
 
 echo -e "${RED}Starting LineageOS 23.2 build script...${RESET}"
 cleanup_repos
@@ -306,23 +306,11 @@ print_header "MicroG manifest created"
 
 clear
 echo -e "${RED}Syncing full repo...${RESET}"
-repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune || error_exit "Repo sync failed"
+repo sync || error_exit "Repo sync failed"
 print_header "Repo sync success"
 
 # ========================================
 
-
-# Instala o script de upload do GoFile e cria o alias "gofile" no bashrc.
-gofile_install(){
-echo -e "${CYAN}Installing gofile upload tool...${RESET}"
-wget -q https://raw.githubusercontent.com/kenway214/GoFile-Upload-Script/master/upload.sh \
-    -O ~/LineageOS-MG/gofile && chmod +x ~/LineageOS-MG/gofile
-if ! grep -q 'alias gofile' ~/.bashrc; then
-    echo 'alias gofile="~/LineageOS-MG/gofile"' >> ~/.bashrc
-fi
-source ~/.bashrc 2>/dev/null || true
- print_header "gofile installed"
-}
 
 # Desativa GApps stock no lineage_ingres.mk: comenta o include do gms.mk
 # e derruba as flags do bloco "Gapps config" para false.
