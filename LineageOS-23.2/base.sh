@@ -388,7 +388,6 @@ sed -i '/LOCAL_MODULE := AuroraServices/,/include $(BUILD_PREBUILT)/ s/LOCAL_CER
 add_to_device_mk "AuroraStore"
 add_to_device_mk "AuroraServices"
 }
-
 # ============================================================
 # PRIVACY APPS
 # ============================================================
