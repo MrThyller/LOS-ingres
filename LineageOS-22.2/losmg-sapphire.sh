@@ -254,9 +254,32 @@ EOF
     add_to_device_mk "Obtainium"
 }
 
+# Baixa o APK do KDE Connect e gera o Android.bp para importação prebuilt.
+install_kdeconnect() {
+    echo -e "${CYAN}Cloning KDE Connect prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/kdeconnect
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/kdeconnect/KDEconnect.apk \
+        "https://f-droid.org/repo/org.kde.kdeconnect_tp_13513.apk" \
+        || { echo "[ERRO] Falha ao baixar KDEconnect.apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/kdeconnect/Android.bp << 'EOF'
+android_app_import {
+    name: "KDEconnect",
+    apk: "KDEconnect.apk",
+    presigned: true,
+    preprocessed: true,
+    dex_preopt: {
+        enabled: false,
+    },
+}
+EOF
+    print_header "KDEconnect prebuilt cloned to device/xiaomi/sapphire/prebuilt/kdeconnect"
+    add_to_device_mk "KDEconnect"
+}
+
 # Baixa o APK do FutoKeyboard e gera o Android.bp para importação prebuilt.
 install_futokeyboard() {
-    echo -e "${CYAN}Cloning Futokeyboard Browser prebuilt...${RESET}"
+    echo -e "${CYAN}Cloning Futokeyboard prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/futokeyboard
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/futokeyboard/Futokeyboard.Apk \
         "https://github.com/futo-org/android-keyboard/releases/download/0.1.30/keyboard-0.1.30.apk" \
@@ -265,7 +288,7 @@ install_futokeyboard() {
     cat > device/xiaomi/sapphire/prebuilt/futokeyboard/Android.bp << 'EOF'
 android_app_import {
     name: "Futokeyboard",
-    apk: "Futokeyboard.Apk",
+    apk: "Futokeyboard.apk",
     presigned: true,
     preprocessed: true,
     product_specific: true,
@@ -551,6 +574,7 @@ install_titanium
 install_thunderbird
 install_aurorastore
 install_obtainium
+install_kdeconnect
 install_auxio
 install_futokeyboard
 gofile_install; clear
