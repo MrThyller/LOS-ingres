@@ -269,7 +269,7 @@ EOF
 # SEGUNDO SYNC
 # ============================================================
 
-first_sync() {
+second_sync() {
     echo -e "${RED}Starting sync...${RESET}"
 
     repo sync --force-sync -j"$(nproc --all)" \
