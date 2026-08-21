@@ -288,7 +288,6 @@ setup_lineage_dir() {
 #####################################
 check_repo_valid
 setup_lineage_dir
-cd "$HOME/LineageOS-MG" || error_exit "Failed to cd to LineageOS-MG"
 
 echo -e "${RED}Starting LineageOS 23.2 build script...${RESET}"
 cleanup_repos
