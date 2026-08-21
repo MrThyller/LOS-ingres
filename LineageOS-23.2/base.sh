@@ -138,7 +138,7 @@ create_roomservice_manifest() {
         name="local-github"
         fetch="https://github.com/"
         sync-c="true"
-        sync-j="4" />
+        sync-j="48" />
 
     <!-- ================================================== -->
     <!-- INGRES -->
@@ -265,18 +265,6 @@ EOF
     print_header "microg.xml created"
 }
 
-# ============================================================
-# SEGUNDO SYNC
-# ============================================================
-
-second_sync() {
-    echo -e "${RED}Syncing device trees and MicroG...${RESET}"
-
-    repo sync \
-        || error_exit "Device tree / MicroG repo sync failed"
-
-    print_header "Device trees and MicroG sync complete"
-}
 
 # ============================================================
 # PRODUCT PACKAGES
