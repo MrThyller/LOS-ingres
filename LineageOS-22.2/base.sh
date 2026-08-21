@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
 # Autor       : WhoFoss <https://github.com/WhoFoss> & Tenório <https://github.com/tenorio-md> 
-# Programa    : los22.sh
+# Programa    : los23.2.sh
 # DESCRIÇÃO   :
-# Script de build automatizado para compilar o LineageOS 22.2 com MicroG
-# integrado, voltado para o Xiaomi Redmi Note 13 4G (codename: sapphire,
-# SM6225/Snapdragon 685). Cuida da limpeza de repositórios antigos, repo
-# init/sync, clone de device tree/HALs/pacotes modificados, manifest local
-# do MicroG, patches (signature spoofing, sufixo de versão), instalação de
-# apps de privacidade, integração do ViPER4AndroidFX, remoção de GApps
-# stock, preparo do ambiente de build e upload do ROM final via GoFile.
-#
-# Dependências:
+# lineageOS-MicroG for ingres, forked by sapphire(Redmi note 13 4g)
+
+# Deps:
 #   - git
 #   - repo (Android repo tool)
 #   - wget / curl
@@ -42,7 +36,7 @@ RESET='\033[0m'
 
 #####################################
 #----------------------------------#
-# Setup do Terminal
+# Setup in Terminal
 #----------------------------------#
 #####################################
 echo -en "\033[?25l"  # esconde o cursor
@@ -94,13 +88,7 @@ print_header() {
 cleanup_repos() {
     echo -e "${YELLOW}Performing cleanup...${RESET}"
     rm -rf .repo/local_manifests/
-    # rm -rf packages/apps/Trebuchet
-    # rm -rf packages/apps/Updater
-    # rm -rf packages/apps/Settings
-    rm -rf hardware/qcom-caf/common
-    # rm -rf packages/apps/ThemePicker
-    # rm -rf vendor/lineage
-    # rm -rf frameworks/base
+    
     print_header "Cleanup completed"
 }
 
@@ -131,7 +119,7 @@ clone_hal() {
 # Adiciona um pacote em PRODUCT_PACKAGES do device.mk, de forma idempotente.
 add_to_device_mk() {
     local package=$1
-    local device_mk="device/xiaomi/sapphire/device.mk"
+    local device_mk="device/xiaomi/ingres/device.mk"
 
     if [ ! -f "$device_mk" ]; then
         echo -e "${YELLOW}device.mk not found, skipping $package addition${RESET}"
@@ -165,27 +153,27 @@ patch_signature_spoofing() {
     fi
 }
 
-# Adiciona sufixo -MicroG/-BUILD_TAG ao version.mk do vendor/lineage.
+# Adiciona sufixo -MG/-BUILD_TAG ao version.mk do vendor/lineage.
 patch_version_mk() {
     local version_mk="vendor/lineage/config/version.mk"
 
     if [ ! -f "$version_mk" ]; then
-        echo -e "${YELLOW}version.mk not found, skipping MicroG suffix patch${RESET}"
+        echo -e "${YELLOW}version.mk not found, skipping MG suffix patch${RESET}"
         return
     fi
 
     cp "$version_mk" "${version_mk}.backup"
 
-    if grep -q "MicroG" "$version_mk"; then
-        echo -e "${YELLOW}MicroG suffix already patched${RESET}"
+    if grep -q "MG" "$version_mk"; then
+        echo -e "${YELLOW}MG suffix already patched${RESET}"
         return
     fi
 
     sed -i '/^LINEAGE_VERSION_SUFFIX := .*/a \
 \
-# Add MICROG to suffix if WITH_GMS is true\
+# Add MG to suffix if WITH_GMS is true\
 ifeq ($(WITH_GMS),true)\
-    LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-MicroG\
+    LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-MG\
 endif\
 \
 # Add custom build tag/feature to suffix if BUILD_TAG is defined\
@@ -193,57 +181,22 @@ ifneq ($(BUILD_TAG),)\
     LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-$(BUILD_TAG)\
 endif' "$version_mk"
 
-    if grep -q "MicroG" "$version_mk"; then
-        print_header "MicroG suffix patch applied successfully"
+    if grep -q "MG" "$version_mk"; then
+        print_header "MG suffix patch applied successfully"
     else
-        echo -e "${YELLOW}Warning: MicroG suffix patch may not have been applied${RESET}"
+        echo -e "${YELLOW}Warning: MG suffix patch may not have been applied${RESET}"
     fi
-}
-
-##################################################
-# Titanium Browser Prebuilt
-# --------------------------------------------------
-# Base: Vanadium (GrapheneOS)
-# Fork: https://github.com/jqssun/android-titanium-browser
-# Versão: v152.0.7977.42
-# Licença: GPL-2.0
-# --------------------------------------------------
-# Baixa APK e gera Android.bp para importação prebuilt
-# Substitui: Browser2, Jelly
-##################################################
-install_titanium() {
-    echo -e "${CYAN}Cloning Titanium Browser prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/titanium
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/titanium/Titanium.apk \
-        "https://github.com/jqssun/android-titanium-browser/releases/download/v152.0.7977.54/152.0.7977.54-1787265097-arm64-v8a.apk" \
-        || { echo "[ERRO] Falha ao baixar Titanium.apk"; return 1; }
-
-    cat > device/xiaomi/sapphire/prebuilt/titanium/Android.bp << 'EOF'
-android_app_import {
-    name: "Titanium",
-    apk: "Titanium.apk",
-    presigned: true,
-    preprocessed: true,
-    product_specific: true,
-    dex_preopt: {
-        enabled: false,
-    },
-    overrides: ["Browser2", "Jelly"],
-}
-EOF
-    print_header "Titanium Browser prebuilt cloned to device/xiaomi/sapphire/prebuilt/titanium"
-    add_to_device_mk "Titanium"
 }
 
 # Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
 install_thunderbird() {
     echo -e "${CYAN}Cloning Thunderbird prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/thunderbird
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/thunderbird/Thunderbird.apk \
+    mkdir -p device/xiaomi/ingres/prebuilt/thunderbird
+    wget -q --show-progress -O device/xiaomi/ingres/prebuilt/thunderbird/Thunderbird.apk \
         "https://f-droid.org/repo/net.thunderbird.android_23.apk" \
         || { echo "[ERRO] Falha ao baixar Thunderbird.apk"; return 1; }
 
-    cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
+    cat > device/xiaomi/ingres/prebuilt/thunderbird/Android.bp << 'EOF'
 android_app_import {
     name: "Thunderbird",
     apk: "Thunderbird.apk",
@@ -254,7 +207,7 @@ android_app_import {
     },
 }
 EOF
-    print_header "Thunderbird prebuilt cloned to device/xiaomi/sapphire/prebuilt/thunderbird"
+    print_header "Thunderbird prebuilt cloned to device/xiaomi/ingres/prebuilt/thunderbird"
     add_to_device_mk "Thunderbird"
 }
 
@@ -289,13 +242,13 @@ add_privacy_apps() {
 
 #####################################
 #----------------------------------#
-# Diretório de trabalho do LineageOS-MicroG
+# Diretório de trabalho do LineageOS-MG
 #----------------------------------#
 #####################################
 
-# Garante que estamos dentro de $HOME/LineageOS-MicroG, criando se preciso.
+# Garante que estamos dentro de $HOME/LineageOS-MG, criando se preciso.
 setup_lineage_dir() {
-    LINEAGE_DIR="LineageOS-MicroG"
+    LINEAGE_DIR="LineageOS-MG"
     TARGET_DIR="$HOME/$LINEAGE_DIR"
 
     cd_or_exit() {
@@ -326,16 +279,14 @@ setup_lineage_dir() {
 #####################################
 check_repo_valid
 setup_lineage_dir
-cd "$HOME/LineageOS-MicroG" || error_exit "Failed to cd to LineageOS22-MicroG"
+cd "$HOME/LineageOS-MG" || error_exit "Failed to cd to LineageOS23.2-MG"
 
-echo -e "${RED}Starting LineageOS 22.2 build script...${RESET}"
+echo -e "${RED}Starting LineageOS 23.2 build script...${RESET}"
 cleanup_repos
 
 echo -e "${CYAN}Initializing repo...${RESET}"
-repo init -u https://github.com/LineageOS/android.git -b lineage-22.2 --git-lfs --depth=1 || error_exit "Repo init failed"
+repo init -u https://github.com/LineageOS/android.git -b lineage-23.2 --git-lfs --depth=1 || error_exit "Repo init failed"
 print_header "Repo init success"
-
-clone_repo "https://github.com/saroj-nokia/local_manifests_sapphire" "sapphire15" ".repo/local_manifests"
 
 echo -e "${GREEN}Creating MicroG manifest...${RESET}"
 cat > .repo/local_manifests/microg.xml << EOF
@@ -353,55 +304,24 @@ repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimiz
 print_header "Repo sync success"
 
 # ========================================
-# Modified Packages
-# Clone custom packages and vendor repositories
-# ========================================
 
-clone_modified_packages()
-{
-############## Função desabilitada
-echo -e "${YELLOW}Cloning modified packages...${RESET}"
-clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Settings" "lineage-22.2" "packages/apps/Settings"
-clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Updater" "lineage-22.2" "packages/apps/Updater"
-clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_ThemePicker" "lineage-22.2" "packages/apps/ThemePicker"
-clone_repo "https://github.com/sapphire-sm6225/android_packages_apps_Trebuchet" "lineage-22.2" "packages/apps/Trebuchet"
-clone_repo "https://github.com/sapphire-sm6225/android_vendor_lineage.git" "lineage-22.2" "vendor/lineage"
-print_header "Vendor lineage cloned"
-print_header "Modified packages cloned" && clear
-}
-
-# ========================================
-# Qualcomm HALs
-# Clone the required SM6225 hardware components
-# ========================================
-echo -e "${RED}Cloning HALs for SM6225...${RESET}"
-clone_hal "https://github.com/sapphire-sm6225/android_hardware_qcom-caf_common.git" "hardware/qcom-caf/common" "lineage-22.2"
-clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_agm.git" "hardware/qcom-caf/sm6225/audio/agm" "lineage-22.2-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_arpal-lx.git" "hardware/qcom-caf/sm6225/audio/pal" "lineage-22.0-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_data-ipa-cfg-mgr.git" "hardware/qcom-caf/sm6225/data-ipa-cfg-mgr" "lineage-22.0-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/vendor_qcom_opensource_dataipa.git" "hardware/qcom-caf/sm6225/dataipa" "lineage-22.0-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_display.git" "hardware/qcom-caf/sm6225/display" "lineage-22.0-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_media.git" "hardware/qcom-caf/sm6225/media" "lineage-22.0-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/hardware_qcom_audio.git" "hardware/qcom-caf/sm6225/audio/primary-hal" "lineage-22.0-caf-sm6225"
-clone_hal "https://github.com/sapphire-sm6225/device_qcom_sepolicy_vndr.git" "device/qcom/sepolicy_vndr/sm6225" "lineage-22.0-caf-sm6225"
-print_header "HALs cloned" && clear
 
 # Instala o script de upload do GoFile e cria o alias "gofile" no bashrc.
 gofile_install(){
 echo -e "${CYAN}Installing gofile upload tool...${RESET}"
 wget -q https://raw.githubusercontent.com/kenway214/GoFile-Upload-Script/master/upload.sh \
-    -O ~/LineageOS-MicroG/gofile && chmod +x ~/LineageOS-MicroG/gofile
+    -O ~/LineageOS-MG/gofile && chmod +x ~/LineageOS-MG/gofile
 if ! grep -q 'alias gofile' ~/.bashrc; then
-    echo 'alias gofile="~/LineageOS-MicroG/gofile"' >> ~/.bashrc
+    echo 'alias gofile="~/LineageOS-MG/gofile"' >> ~/.bashrc
 fi
 source ~/.bashrc 2>/dev/null || true
  print_header "gofile installed"
 }
 
-# Desativa GApps stock no lineage_sapphire.mk: comenta o include do gms.mk
+# Desativa GApps stock no lineage_ingres.mk: comenta o include do gms.mk
 # e derruba as flags do bloco "Gapps config" para false.
 rgapps() {
-    local MK_FILE="device/xiaomi/sapphire/lineage_sapphire.mk"
+    local MK_FILE="device/xiaomi/ingres/lineage_ingres.mk"
 
     if [ ! -f "$MK_FILE" ]; then
         echo "[ERRO] $MK_FILE nao encontrado"
@@ -457,11 +377,11 @@ add_privacy_apps
 clear
 echo -e "${CYAN}Setting up build environment...${RESET}"
 source build/envsetup.sh
-export BUILD_USERNAME=WhoFoss
-export BUILD_HOSTNAME=los22
+export BUILD_USERNAME=Torquatox7
+export BUILD_HOSTNAME=LineageOS-MG
 export SKIP_ABI_CHECKS=true
 export WITH_GMS=true
-mkdir -p out/target/product/sapphire/obj/KERNEL_OBJ/usr
+mkdir -p out/target/product/ingres/obj/KERNEL_OBJ/usr
 print_header "Build environment ready"
 
 clear
@@ -473,7 +393,7 @@ brunch sapphire user || error_exit "Brunch failed"
 upload(){
     # Upload ROM to GoFile
     BUILD_DIR="out/target/product/sapphire"
-    GOFILE_SCRIPT="${HOME}/LineageOS-MicroG/gofile"
+    GOFILE_SCRIPT="${HOME}/LineageOS-MG/gofile"
     ROM_URL=""
     ROM_SHA256=""
     ROM_SIZE=""
@@ -484,7 +404,7 @@ upload(){
     fi
 
     # Find the most recent ROM (by modification date)
-    ROM_NAME=$(ls -t "$BUILD_DIR" 2>/dev/null | grep "lineage-22.2-.*-UNOFFICIAL-sapphire.*\.zip$" | head -n 1)
+    ROM_NAME=$(ls -t "$BUILD_DIR" 2>/dev/null | grep "lineage-23.2-.*-UNOFFICIAL-ingres.*\.zip$" | head -n 1)
 
     if [ -n "$ROM_NAME" ]; then
         ROM_PATH="$BUILD_DIR/$ROM_NAME"
