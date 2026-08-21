@@ -277,6 +277,7 @@ first_sync() {
         || error_exit "sync failed"
 
     print_header "sync complete"
+    }
     
 # ============================================================
 # PRODUCT PACKAGES
