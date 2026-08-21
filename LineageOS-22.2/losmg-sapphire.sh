@@ -231,6 +231,7 @@ EOF
     add_to_device_mk "Titanium"
 }
 
+# Baixa o APK do Obtainium e gera o Android.bp para importação prebuilt.
 install_obtainium() {
     echo -e "${CYAN}Cloning Obtainium prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/obtainium
@@ -251,6 +252,31 @@ android_app_import {
 EOF
     print_header "Obtainium prebuilt cloned to device/xiaomi/sapphire/prebuilt/obtainium"
     add_to_device_mk "Obtainium"
+}
+
+# Baixa o APK do FutoKeyboard e gera o Android.bp para importação prebuilt.
+install_futokeyboard() {
+    echo -e "${CYAN}Cloning Futokeyboard Browser prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/futokeyboard
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/futokeyboard/Futokeyboard.Apk \
+        "https://github.com/futo-org/android-keyboard/releases/download/0.1.30/keyboard-0.1.30.apk" \
+        || { echo "[ERRO] Falha ao baixar Futokeyboard.Apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/futokeyboard/Android.bp << 'EOF'
+android_app_import {
+    name: "Futokeyboard",
+    apk: "Futokeyboard.Apk",
+    presigned: true,
+    preprocessed: true,
+    product_specific: true,
+    dex_preopt: {
+        enabled: false,
+    },
+    overrides: ["LatinIME"],
+}
+EOF
+    print_header "Futokeyboard Browser prebuilt cloned to device/xiaomi/sapphire/prebuilt/futokeyboard"
+    add_to_device_mk "Futokeyboard"
 }
 
 # Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
@@ -526,6 +552,7 @@ install_thunderbird
 install_aurorastore
 install_obtainium
 install_auxio
+install_futokeyboard
 gofile_install; clear
 
 
