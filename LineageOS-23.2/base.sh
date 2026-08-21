@@ -381,13 +381,35 @@ install_aurorastore() {
         || error_exit "Failed to clone AuroraStore"
 
     rm -rf vendor/aurora/.git
+    rm -rf vendor/aurora/Android.mk
 
-# Corrigir assinatura do AuroraServices
-sed -i '/LOCAL_MODULE := AuroraServices/,/include $(BUILD_PREBUILT)/ s/LOCAL_CERTIFICATE := releasekey/LOCAL_CERTIFICATE := PRESIGNED/' vendor/aurora/Android.mk
+    cat > vendor/aurora/Android.mk << 'EOF'
+    # AuroraStore as a regular system app
+#
+# Prebuilt content taken from:
+# https://gitlab.com/AuroraOSS/AuroraStore/tags
+#
+LOCAL_PATH := $(call my-dir)
 
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := AuroraStore
+LOCAL_SRC_FILES := AuroraStore_4.6.4.apk
+LOCAL_MODULE_CLASS := APPS
+LOCAL_MODULE_SUFFIX := $(COMMON_ANDROID_PACKAGE_SUFFIX)
+LOCAL_CERTIFICATE := PRESIGNED
+LOCAL_OPTIONAL_USES_LIBRARIES := \
+    androidx.window.extensions \
+    androidx.window.sidecar
+LOCAL_PRODUCT_MODULE := true
+LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/$(LOCAL_SRC_FILES)
+
+include $(BUILD_PREBUILT)
+EOF
+    
 add_to_device_mk "AuroraStore"
-add_to_device_mk "AuroraServices"
 }
+
 # ============================================================
 # PRIVACY APPS
 # ============================================================
