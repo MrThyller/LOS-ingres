@@ -10,7 +10,6 @@
 #   - repo (Android repo tool)
 #   - wget / curl
 #   - bash >= 4
-#!/usr/bin/env bash
 #-------------------------------------------------------------------#
 # LineageOS 23.2 MicroG - ingres
 #-------------------------------------------------------------------#
@@ -464,40 +463,15 @@ patch_signature_spoofing() {
     fi
 }
 
-# ============================================================
-# VERSION / NOME DA ROM
-# ============================================================
+    # Remove linhas antigas de customização do nome
+    sed -i '/LineageOS MicroG custom suffix/d' "$version_mk"
+    sed -i '/LineageMG custom suffix/d' "$version_mk"
+    sed -i '/LINEAGE_VERSION_SUFFIX := .*LineageMG/d' "$version_mk"
 
-patch_version_mk() {
-    local version_mk="vendor/lineage/config/version.mk"
+    # Troca somente LineageOS por LineageMG
+    sed -i 's/LineageOS/LineageMG/g' "$version_mk"
 
-    if [ ! -f "$version_mk" ]; then
-        echo -e "${YELLOW}version.mk not found. Skipping version patch.${RESET}"
-        return 0
-    fi
-
-    cp "$version_mk" "${version_mk}.backup"
-
-    # Remove versões anteriores do patch
-    sed -i '/# Add MicroG suffix/d' "$version_mk"
-    sed -i '/# Add custom build tag/d' "$version_mk"
-
-    # Remove linhas antigas contendo MG adicionadas pelo script
-    sed -i '/LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-MG/d' "$version_mk"
-
-    if ! grep -q 'LINEAGE_VERSION_SUFFIX := .*MicroG' "$version_mk"; then
-        cat >> "$version_mk" << 'EOF'
-
-# LineageOS MicroG custom suffix
-LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-MicroG-ingres
-
-ifneq ($(BUILD_TAG),)
-    LINEAGE_VERSION_SUFFIX := $(LINEAGE_VERSION_SUFFIX)-$(BUILD_TAG)
-endif
-EOF
-    fi
-
-    print_header "ROM version set to LineageOS-MicroG-ingres"
+    print_header "ROM version set to LineageMG"
 }
 
 # ============================================================
@@ -510,7 +484,7 @@ setup_build_environment() {
     source build/envsetup.sh
 
     export BUILD_USERNAME=Torquatox7
-    export BUILD_HOSTNAME=LineageOS-MicroG
+    export BUILD_HOSTNAME=LineageMG
     export SKIP_ABI_CHECKS=true
     export WITH_GMS=true
 
@@ -559,9 +533,9 @@ add_privacy_apps
 setup_build_environment
 
 # 12. Build
-echo -e "${RED}Starting LineageOS-MicroG build...${RESET}"
+echo -e "${RED}Starting LineageMG build...${RESET}"
 
 brunch ingres user \
     || error_exit "Brunch failed"
 
-print_header "LineageOS-MicroG build finished"
+print_header "LineageMG build finished"
