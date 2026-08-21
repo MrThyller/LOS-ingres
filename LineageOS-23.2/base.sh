@@ -53,15 +53,9 @@ trap 'echo -en "\033[?12l\033[?25h"' EXIT  # restaura ao sair
 #         Inicializando..          #
 
 #----------------------------------#
-echo -e "${CYAN}Initializing repo...${RESET}"
-repo init -u https://github.com/LineageOS/android.git -b lineage-23.2 --git-lfs --depth=1 || error_exit "Repo init failed"
-print_header "Repo init success"
-
-echo -e "${RED}Syncing repo...${RESET}"
-repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune || error_exit "Repo sync failed"
-print_header "Repo sync success"
 
 echo -e "${CYAN}creating local manifest...${RESET}"
+mkdir .repo/local_manifests/roomservice.xml
 cat > .repo/local_manifests/roomservice.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
@@ -105,30 +99,6 @@ print_header "Local manifest created"
 
 #----------------------------------#
 
-# Imprime mensagem de erro formatada com timestamp e encerra o script.
-error_exit() {
-    local message="$1"
-    local exit_code="${2:-1}"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "${RED}[ERROR] ${timestamp} - ${message}${RESET}" >&2
-    exit "$exit_code"
-}
-
-# Verifica se existe um .repo residual no HOME e aborta caso encontrado.
-check_repo_valid() {
-    local repo_dir="$HOME/.repo"
-
-    if [ -d "$repo_dir" ]; then
-        echo "[ERROR] $repo_dir found — leftover workspace in home directory"
-
-        if [ ! -f "$repo_dir/manifest.xml" ] && [ ! -L "$repo_dir/manifest.xml" ]; then
-            echo "[ERROR] Also, this .repo appears incomplete/corrupted (missing manifest.xml)"
-        fi
-
-        error_exit "Remove or move $repo_dir before continuing (rm -rf $repo_dir)"
-    fi
-}
-
 # Imprime um cabeçalho colorido com borda ao redor da mensagem.
 print_header() {
     local message="$1"
@@ -139,14 +109,6 @@ print_header() {
     echo -e "${color}${border}${RESET}"
     echo -e "${color}${message}${RESET}"
     echo -e "${color}${border}${RESET}"
-}
-
-# Remove diretórios de pacotes/device tree que serão reclonados do zero.
-cleanup_repos() {
-    echo -e "${YELLOW}Performing cleanup...${RESET}"
-    rm -rf .repo/local_manifests/
-    
-    print_header "Cleanup completed"
 }
 
 # Clona (ou reclona) um repositório git raso em um diretório de destino.
@@ -162,15 +124,6 @@ clone_repo() {
     git clone --depth 1 -b "$branch" "$repo_url" "$dest" || error_exit "Failed to clone $dest"
 
     print_header "$dest clone success"
-}
-
-# Clona um repositório de HAL, sobrescrevendo o path caso já exista.
-clone_hal() {
-    local url=$1
-    local path=$2
-    local branch=$3
-    rm -rf "$path"
-    git clone --depth 1 -b "$branch" "$url" "$path" || error_exit "Failed to clone HAL $path"
 }
 
 # Adiciona um pacote em PRODUCT_PACKAGES do device.mk, de forma idempotente.
