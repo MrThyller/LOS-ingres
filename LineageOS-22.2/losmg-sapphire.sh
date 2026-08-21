@@ -211,7 +211,7 @@ install_titanium() {
     echo -e "${CYAN}Cloning Titanium Browser prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/titanium
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/titanium/Titanium.apk \
-        "https://github.com/jqssun/android-titanium-browser/releases/download/v152.0.7977.42/152.0.7977.42-1786928933-arm64-v8a.apk" \
+        "https://github.com/jqssun/android-titanium-browser/releases/download/v152.0.7977.54/152.0.7977.54-1787265097-arm64-v8a.apk" \
         || { echo "[ERRO] Falha ao baixar Titanium.apk"; return 1; }
 
     cat > device/xiaomi/sapphire/prebuilt/titanium/Android.bp << 'EOF'
