@@ -48,6 +48,63 @@ trap 'echo -en "\033[?12l\033[?25h"' EXIT  # restaura ao sair
 #----------------------------------#
 #####################################
 
+#----------------------------------#
+
+#         Inicializando..          #
+
+#----------------------------------#
+echo -e "${CYAN}Initializing repo...${RESET}"
+repo init -u https://github.com/LineageOS/android.git -b lineage-23.2 --git-lfs --depth=1 || error_exit "Repo init failed"
+print_header "Repo init success"
+
+echo -e "${RED}Syncing repo...${RESET}"
+repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune || error_exit "Repo sync failed"
+print_header "Repo sync success"
+
+echo -e "${CYAN}creating local manifest...${RESET}"
+cat > .repo/local_manifests/roomservice.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <!-- REMOTES -->
+    <remote name="local-github"
+            fetch="https://github.com/"
+            sync-c="true"
+            review="https://gerrit.slsh.ru"
+            sync-j="4" />
+
+    <!-- INGRES -->
+    <project name="Ingres-Centre/android_device_xiaomi_ingres" path="device/xiaomi/ingres" remote="local-github" revision="lineage-23.2" />
+    <project name="Ingres-Centre/proprietary_vendor_xiaomi_ingres" path="vendor/xiaomi/ingres" remote="local-github" revision="lineage-23.1" />
+
+    <!-- SM8450 -->
+    <project name="LineageOS/android_device_xiaomi_sm8450-common" path="device/xiaomi/sm8450-common" remote="local-github" revision="lineage-23.2" />
+    <project name="TheMuppets/proprietary_vendor_xiaomi_sm8450-common" path="vendor/xiaomi/sm8450-common" remote="local-github" revision="lineage-23.2" />
+
+    <!-- KERNEL -->
+    <project name="Ingres-Centre/android_kernel_xiaomi_sm8450" path="kernel/xiaomi/sm8450" remote="local-github" revision="lineage-23.2" />
+    <project name="LineageOS/android_kernel_xiaomi_sm8450-modules" path="kernel/xiaomi/sm8450-modules" remote="local-github" revision="lineage-23.2" />
+    <project name="Ingres-Centre/android_kernel_xiaomi_sm8450-devicetrees" path="kernel/xiaomi/sm8450-devicetrees" remote="local-github" revision="lineage-23.2" />
+
+    <!-- GAMEKEYS -->
+    <project name="Ingres-Centre/android_packages_apps_gamekeys" path="packages/apps/GameKeys" remote="local-github" revision="lineage-23.0" />
+
+    <remove-project name="LineageOS/android_hardware_lineage_interfaces" />
+    <project name="Ingres-Centre/android_hardware_lineage_interfaces" path="hardware/lineage/interfaces" remote="local-github" revision="lineage-23.2" />
+
+    <remove-project name="LineageOS/android_device_lineage_sepolicy" />
+    <project name="Ingres-Centre/android_device_lineage_sepolicy" path="device/lineage/sepolicy" remote="local-github" revision="lineage-23.2" />
+
+    <!-- HARDWARE -->
+    <project name="LineageOS/android_hardware_xiaomi" path="hardware/xiaomi" remote="local-github" revision="lineage-23.2" />
+
+    <!-- Leds Package -->
+    <project name="Ingres-Centre/android_packages_apps_leds" path="packages/apps/Leds" remote="local-github" revision="lineage-23.0" />
+</manifest>
+EOF
+print_header "Local manifest created"
+
+#----------------------------------#
+
 # Imprime mensagem de erro formatada com timestamp e encerra o script.
 error_exit() {
     local message="$1"
@@ -284,9 +341,6 @@ cd "$HOME/LineageOS-MG" || error_exit "Failed to cd to LineageOS23.2-MG"
 echo -e "${RED}Starting LineageOS 23.2 build script...${RESET}"
 cleanup_repos
 
-echo -e "${CYAN}Initializing repo...${RESET}"
-repo init -u https://github.com/LineageOS/android.git -b lineage-23.2 --git-lfs --depth=1 || error_exit "Repo init failed"
-print_header "Repo init success"
 
 echo -e "${GREEN}Creating MicroG manifest...${RESET}"
 cat > .repo/local_manifests/microg.xml << EOF
@@ -386,13 +440,13 @@ print_header "Build environment ready"
 
 clear
 echo -e "${RED}Starting build...${RESET}"
-brunch sapphire user || error_exit "Brunch failed"
+brunch ingres user || error_exit "Brunch failed"
 
 # Localiza o ROM mais recente, gera o SHA256 e envia para o GoFile
 # (usando o script local se existir, com fallback via download remoto).
 upload(){
     # Upload ROM to GoFile
-    BUILD_DIR="out/target/product/sapphire"
+    BUILD_DIR="out/target/product/ingres"
     GOFILE_SCRIPT="${HOME}/LineageOS-MG/gofile"
     ROM_URL=""
     ROM_SHA256=""
