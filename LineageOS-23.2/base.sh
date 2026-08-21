@@ -55,7 +55,6 @@ trap 'echo -en "\033[?12l\033[?25h"' EXIT  # restaura ao sair
 #----------------------------------#
 
 echo -e "${CYAN}creating local manifest...${RESET}"
-mkdir .repo/local_manifests/roomservice.xml
 cat > .repo/local_manifests/roomservice.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
@@ -395,71 +394,3 @@ clear
 echo -e "${RED}Starting build...${RESET}"
 brunch ingres user || error_exit "Brunch failed"
 
-# Localiza o ROM mais recente, gera o SHA256 e envia para o GoFile
-# (usando o script local se existir, com fallback via download remoto).
-upload(){
-    # Upload ROM to GoFile
-    BUILD_DIR="out/target/product/ingres"
-    GOFILE_SCRIPT="${HOME}/LineageOS-MG/gofile"
-    ROM_URL=""
-    ROM_SHA256=""
-    ROM_SIZE=""
-
-    if [ ! -d "$BUILD_DIR" ]; then
-        echo -e "${RED}[ERROR] Build directory not found: $BUILD_DIR${RESET}"
-        return 1
-    fi
-
-    # Find the most recent ROM (by modification date)
-    ROM_NAME=$(ls -t "$BUILD_DIR" 2>/dev/null | grep "lineage-23.2-.*-UNOFFICIAL-ingres.*\.zip$" | head -n 1)
-
-    if [ -n "$ROM_NAME" ]; then
-        ROM_PATH="$BUILD_DIR/$ROM_NAME"
-        ROM_SIZE=$(du -h "$ROM_PATH" | cut -f1)
-        ROM_SHA256=$(sha256sum "$ROM_PATH" | cut -d' ' -f1)
-        echo "$ROM_SHA256  $ROM_NAME" > "${ROM_PATH}.sha256"
-
-        # Try using the local script first
-        if [ -x "$GOFILE_SCRIPT" ]; then
-            ROM_OUTPUT=$("$GOFILE_SCRIPT" "$ROM_PATH" 2>&1)
-            UPLOAD_EXIT=$?
-        else
-            TMP_SCRIPT=$(mktemp)
-            if curl -fsSL -o "$TMP_SCRIPT" "https://raw.githubusercontent.com/saroj-nokia/GoFile-Upload/refs/heads/master/upload.sh"; then
-                ROM_OUTPUT=$(bash "$TMP_SCRIPT" "$ROM_PATH" 2>&1)
-                UPLOAD_EXIT=$?
-            else
-                ROM_OUTPUT="Failed to download fallback script"
-                UPLOAD_EXIT=1
-            fi
-            rm -f "$TMP_SCRIPT"
-        fi
-
-        if [ $UPLOAD_EXIT -eq 0 ]; then
-            ROM_URL=$(echo "$ROM_OUTPUT" | grep -oP 'https?://[^\s]+' | head -n1)
-            if [ -z "$ROM_URL" ]; then
-                echo -e "${YELLOW}Warning: upload completed but the URL could not be extracted${RESET}"
-                echo -e "${YELLOW}Output: $ROM_OUTPUT${RESET}"
-            fi
-        else
-            echo -e "${RED}Failed to upload ROM to GoFile. Code: $UPLOAD_EXIT${RESET}"
-            echo -e "${RED}$ROM_OUTPUT${RESET}"
-        fi
-    else
-        echo -e "${YELLOW}ROM not found in $BUILD_DIR${RESET}"
-        echo -e "${YELLOW}Upload skipped${RESET}"
-        return 1
-    fi
-
-    print_header "Upload complete"
-    echo -e "${CYAN}ROM:${RESET}${ROM_NAME:-N/A}"
-    echo -e "${CYAN}Size:${RESET}${ROM_SIZE:-N/A}"
-    if [ -n "$ROM_URL" ]; then
-        echo -e "${CYAN}Link:${RESET}$ROM_URL"
-    fi
-    if [ -n "$ROM_SHA256" ]; then
-        echo -e "${CYAN}SHA256:${RESET}$ROM_SHA256"
-    fi
-
-    [ -n "$ROM_URL" ] && return 0 || return 1
-}; upload
