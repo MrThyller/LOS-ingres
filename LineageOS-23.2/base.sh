@@ -383,7 +383,6 @@ install_aurorastore() {
     rm -rf vendor/aurora/.git
 
     add_to_device_mk "AuroraStore"
-    add_to_device_mk "AuroraServices"
 
     print_header "AuroraStore installed"
 }
@@ -472,7 +471,6 @@ patch_signature_spoofing() {
     sed -i 's/LineageOS/LineageMG/g' "$version_mk"
 
     print_header "ROM version set to LineageMG"
-}
 
 # ============================================================
 # BUILD CONFIG
