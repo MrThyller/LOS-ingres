@@ -15,7 +15,7 @@
 # LineageOS 23.2 MicroG - ingres
 #-------------------------------------------------------------------#
 
-set -Eeuo pipefail
+set -Ee -o pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
