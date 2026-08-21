@@ -1,32 +1,15 @@
 #!/usr/bin/env bash
 #-------------------------------------------------------------------#
-# Autor do Fork                     : Tenório <https://github.com/tenorio-md>
-# Autor original e créditos         : WhoFoss <https://github.com/WhoFoss>
-# Programa    : losmg.sh
+# Autor       : WhoFoss <https://github.com/WhoFoss>
+# Programa    : who.sh
 # DESCRIÇÃO   :
 # Script de build automatizado para compilar o LineageOS 22.2 com MicroG
 # integrado, voltado para o Xiaomi Redmi Note 13 4G (codename: sapphire,
 # SM6225/Snapdragon 685). Cuida da limpeza de repositórios antigos, repo
 # init/sync, clone de device tree/HALs/pacotes modificados, manifest local
 # do MicroG, patches (signature spoofing, sufixo de versão), instalação de
-# apps de privacidade, integração do ViPER4AndroidFX, remoção de GApps
-# stock, preparo do ambiente de build e upload do ROM final via GoFile.
-#
-# Dependências:
-#   - git
-#   - repo (Android repo tool)
-#   - wget / curl
-#   - bash >= 4
-#
-# Recursos:
-#   - Limpeza de repositórios antigos (cleanup_repos)
-#   - Clone de device tree, HALs e pacotes modificados
-#   - Manifest local do MicroG
-#   - Patch de Signature Spoofing e sufixo de versão MicroG
-#   - Instalação de apps de privacidade (Titanium, Thunderbird, AuroraStore)
-#   - Desativação de GApps stock (rgapps)
-#   - Upload automático do ROM via GoFile
-#
+# apps de privacidade, remoção de GApps
+# stock, preparo do ambiente de build e upload da ROM final via GoFile.
 #-------------------------------------------------------------------#
 
 #####################################
@@ -63,7 +46,11 @@ error_exit() {
     exit "$exit_code"
 }
 
+#####################################
+#----------------------------------#
 # Verifica se existe um .repo residual no HOME e aborta caso encontrado.
+#----------------------------------#
+#####################################
 check_repo_valid() {
     local repo_dir="$HOME/.repo"
 
@@ -79,33 +66,39 @@ check_repo_valid() {
 }
 
 # Imprime um cabeçalho colorido com borda ao redor da mensagem.
-print_header() {
+print_header() 
+{
     local message="$1"
     local border_char="${2:-=}"
     local color="${3:-$GREEN}"
-    local length=${#message}
-    local border=$(printf "%${length}s" | tr " " "$border_char")
+    
+    # Remove cores caso a mensagem já tenha
+    message=$(echo -e "$message" | sed 's/\x1b\[[0-9;]*m//g')
+    
+    local border=$(printf "%${#message}s" | tr " " "$border_char")
+    
     echo -e "${color}${border}${RESET}"
     echo -e "${color}${message}${RESET}"
     echo -e "${color}${border}${RESET}"
 }
 
-# Remove diretórios de pacotes/device tree que serão reclonados do zero. Alguns foram desativados para corrigir bugs. 
-cleanup_repos() {
+# Remove diretórios de pacotes/device tree que serão reclonados do zero.
+cleanup_repos() 
+{
     echo -e "${YELLOW}Performing cleanup...${RESET}"
     rm -rf .repo/local_manifests/
-    # rm -rf packages/apps/Trebuchet // Desativado
-    # rm -rf packages/apps/Updater // Desativado
-    # rm -rf packages/apps/Settings // Desativado
+    #rm -rf packages/apps/Trebuchet #Desativado
+    #rm -rf packages/apps/Updater #Desativado
+    #rm -rf packages/apps/Settings #Desativado
     rm -rf hardware/qcom-caf/common
-    # rm -rf packages/apps/ThemePicker // Desativado
-    # rm -rf vendor/lineage // Desativado
-    # rm -rf frameworks/base // Desativado
+    #rm -rf packages/apps/ThemePicker #Desativado
+    #rm -rf vendor/lineage #Desativado
     print_header "Cleanup completed"
 }
 
 # Clona (ou reclona) um repositório git raso em um diretório de destino.
-clone_repo() {
+clone_repo() 
+{
     local repo_url=$1
     local branch=$2
     local dest=$3
@@ -116,11 +109,12 @@ clone_repo() {
 
     git clone --depth 1 -b "$branch" "$repo_url" "$dest" || error_exit "Failed to clone $dest"
 
-    print_header "$dest clone success"
+    print_header "${dest} clone success" "#" "$YELLOW"
 }
 
 # Clona um repositório de HAL, sobrescrevendo o path caso já exista.
-clone_hal() {
+clone_hal() 
+{
     local url=$1
     local path=$2
     local branch=$3
@@ -129,7 +123,8 @@ clone_hal() {
 }
 
 # Adiciona um pacote em PRODUCT_PACKAGES do device.mk, de forma idempotente.
-add_to_device_mk() {
+add_to_device_mk() 
+{
     local package=$1
     local device_mk="device/xiaomi/sapphire/device.mk"
 
@@ -166,7 +161,8 @@ patch_signature_spoofing() {
 }
 
 # Adiciona sufixo -MicroG/-BUILD_TAG ao version.mk do vendor/lineage.
-patch_version_mk() {
+patch_version_mk() 
+{
     local version_mk="vendor/lineage/config/version.mk"
 
     if [ ! -f "$version_mk" ]; then
@@ -235,30 +231,6 @@ EOF
     add_to_device_mk "Titanium"
 }
 
-# Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
-install_thunderbird() {
-    echo -e "${CYAN}Cloning Thunderbird prebuilt...${RESET}"
-    mkdir -p device/xiaomi/sapphire/prebuilt/thunderbird
-    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/thunderbird/Thunderbird.apk \
-        "https://f-droid.org/repo/net.thunderbird.android_29.apk" \
-        || { echo "[ERRO] Falha ao baixar Thunderbird.apk"; return 1; }
-
-    cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
-android_app_import {
-    name: "Thunderbird",
-    apk: "Thunderbird.apk",
-    presigned: true,
-    preprocessed: true,
-    dex_preopt: {
-        enabled: false,
-    },
-}
-EOF
-    print_header "Thunderbird prebuilt cloned to device/xiaomi/sapphire/prebuilt/thunderbird"
-    add_to_device_mk "Thunderbird"
-}
-
-# Baixa o APK do Obtainium e gera o Android.bp para importação prebuilt.
 install_obtainium() {
     echo -e "${CYAN}Cloning Obtainium prebuilt...${RESET}"
     mkdir -p device/xiaomi/sapphire/prebuilt/obtainium
@@ -281,8 +253,67 @@ EOF
     add_to_device_mk "Obtainium"
 }
 
-# Baixa o APK do Auxio e gera o Android.bp para importação prebuilt.
-install_auxio() {
+# Baixa o APK do Thunderbird e gera o Android.bp para importação prebuilt.
+install_thunderbird() 
+{
+    echo -e "${YELLOW}Cloning Thunderbird prebuilt...${RESET}"
+    mkdir -p device/xiaomi/sapphire/prebuilt/thunderbird
+    wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/thunderbird/Thunderbird.apk \
+        "https://f-droid.org/repo/net.thunderbird.android_23.apk" \
+        || { echo "[ERRO] Falha ao baixar Thunderbird.apk"; return 1; }
+
+    cat > device/xiaomi/sapphire/prebuilt/thunderbird/Android.bp << 'EOF'
+android_app_import {
+    name: "Thunderbird",
+    apk: "Thunderbird.apk",
+    presigned: true,
+    preprocessed: true,
+    dex_preopt: {
+        enabled: false,
+    },
+}
+EOF
+    print_header "Thunderbird prebuilt cloned to device/xiaomi/sapphire/prebuilt/thunderbird"
+    add_to_device_mk "Thunderbird"
+}
+
+##################################################
+# install_aurorastore - Clona e configura AuroraStore
+##################################################
+install_aurorastore() 
+{
+    print_header "Cloning AuroraStore prebuilt..." "$YELLOW"
+    
+    rm -rf vendor/aurora
+    git clone --depth 1 -b 12L https://github.com/MSe1969/AuroraStore-prebuilt.git vendor/aurora \
+        || { echo -e "${RED}[ERRO] Falha ao clonar AuroraStore-prebuilt${RESET}"; return 1; }
+    
+    rm -rf vendor/aurora/.git
+    print_header "AuroraStore prebuilt cloned to vendor/aurora" "=" "$GREEN"
+
+    add_to_device_mk "AuroraStore"
+    add_to_device_mk "AuroraServices"
+}
+
+
+# ============================================================
+# Auxio Music Player
+# ============================================================
+# Descricao: Baixa e integra o player de musica Auxio como
+# aplicativo prebuilt no build do Android para o Xiaomi Sapphire
+#
+# Caracteristicas:
+#   - Player minimalista e open-source (F-Droid)
+#   - Interface moderna baseada em Material You
+#   - Suporte a tags e albuns com alta performance
+#   - Sem dependencias do Google Services
+#
+# Site oficial: https://auxio.app/
+# Fonte: https://f-droid.org/packages/org.oxycblt.auxio/
+# ============================================================
+
+install_auxio() 
+{
     mkdir -p device/xiaomi/sapphire/prebuilt/auxio
     
     wget -q --show-progress -O device/xiaomi/sapphire/prebuilt/auxio/Auxio.apk \
@@ -308,66 +339,36 @@ EOF
     echo -e "${GREEN}Auxio instalado com sucesso em device/xiaomi/sapphire/prebuilt/auxio/${RESET}"
 }
 
-# Clona o AuroraStore prebuilt e registra os pacotes no device.mk.
-install_aurorastore() {
-    echo -e "${CYAN}Cloning AuroraStore prebuilt...${RESET}"
-    rm -rf vendor/aurora
-    git clone --depth 1 -b 12L https://github.com/MSe1969/AuroraStore-prebuilt.git vendor/aurora \
-        || { echo "[ERRO] Falha ao clonar AuroraStore-prebuilt"; return 1; }
-    rm -rf vendor/aurora/.git
-    print_header "AuroraStore prebuilt cloned to vendor/aurora"
-
-    add_to_device_mk "AuroraStore"
-    add_to_device_mk "AuroraServices"
-}
-
 #####################################
 #----------------------------------#
-# Apps de privacidade a incluir no build
-# Comente qualquer linha para pular aquele app
+# Diretório de trabalho do LOSMG
 #----------------------------------#
 #####################################
 
-# Orquestra a instalação de todos os apps de privacidade prebuilt.
-add_privacy_apps() {
-    clear
-    install_titanium
-    install_thunderbird
-    install_aurorastore
-    install_obtainium
-    install_auxio
-    print_header "Privacy apps step complete"
-}
-
-#####################################
-#----------------------------------#
-# Diretório de trabalho do LineageOS-MicroG
-#----------------------------------#
-#####################################
-
-# Garante que estamos dentro de $HOME/LineageOS-MicroG, criando se preciso.
+# Garante que estamos dentro de $HOME/LOSMG, criando se preciso.
 setup_lineage_dir() {
-    LINEAGE_DIR="LineageOS-MicroG"
+    LINEAGE_DIR="LOSMG"
     TARGET_DIR="$HOME/$LINEAGE_DIR"
 
     cd_or_exit() {
         cd "$1" || error_exit "Failed to cd to $1"
     }
 
-    if [ "$(basename "$PWD")" != "$LINEAGE_DIR" ]; then
-        echo -e "${CYAN}Not in $LINEAGE_DIR directory. Checking/Creating...${RESET}"
+    [ "$(basename "$PWD")" = "$LINEAGE_DIR" ] && {
+        print_header "Already in $LINEAGE_DIR" "=" "$GREEN"
+        return
+    }
 
-        if [ -d "$TARGET_DIR" ]; then
-            cd_or_exit "$TARGET_DIR"
-            echo -e "${GREEN}Changed to existing directory: $PWD${RESET}"
-        else
-            echo -e "${YELLOW}Creating $TARGET_DIR...${RESET}"
-            mkdir -p "$TARGET_DIR" || error_exit "Failed to create $TARGET_DIR"
-            cd_or_exit "$TARGET_DIR"
-            echo -e "${GREEN}Created and changed to: $PWD${RESET}"
-        fi
+    print_header "Setting up $LINEAGE_DIR..." "=" "$CYAN"
+    
+    if [ -d "$TARGET_DIR" ]; then
+        cd_or_exit "$TARGET_DIR"
+        print_header "Changed to: $PWD" "=" "$GREEN"
     else
-        echo -e "${GREEN}Already in $LINEAGE_DIR directory: $PWD${RESET}"
+        print_header "Creating $TARGET_DIR..." "=" "$YELLOW"
+        mkdir -p "$TARGET_DIR" || error_exit "Failed to create"
+        cd_or_exit "$TARGET_DIR"
+        print_header "Created: $PWD" "=" "$GREEN"
     fi
 }
 
@@ -378,18 +379,28 @@ setup_lineage_dir() {
 #####################################
 check_repo_valid
 setup_lineage_dir
-cd "$HOME/LineageOS-MicroG" || error_exit "Failed to cd to LineageOS22-MicroG"
+cd "$HOME/LOSMG" || error_exit "Failed to cd to LineageOS22-MicroG"
 
-echo -e "${RED}Starting LineageOS 22.2 build script...${RESET}"
+echo -e "${YELLOW}Starting LineageOS 22.2 build script...${RESET}"
 cleanup_repos
 
-echo -e "${CYAN}Initializing repo...${RESET}"
+
+# ========================================
+# Repository Initialization
+# Initialize the LineageOS source repository
+# ========================================
+echo -e "${YELLOW}Initializing repo...${RESET}"
 repo init -u https://github.com/LineageOS/android.git -b lineage-22.2 --git-lfs --depth=1 || error_exit "Repo init failed"
 print_header "Repo init success"
 
 clone_repo "https://github.com/saroj-nokia/local_manifests_sapphire" "sapphire15" ".repo/local_manifests"
 
-echo -e "${GREEN}Creating MicroG manifest...${RESET}"
+
+# ========================================
+# MicroG Manifest
+# Add the LineageOS for microG repository manifest
+# ========================================
+echo -e "${YELLOW}Creating MicroG manifest...${RESET}"
 cat > .repo/local_manifests/microg.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
@@ -397,10 +408,13 @@ cat > .repo/local_manifests/microg.xml << EOF
     <project path="vendor/partner_gms" name="android_vendor_partner_gms" remote="lineageos4microg" revision="master" />
 </manifest>
 EOF
-print_header "MicroG manifest created"
+print_header "MicroG manifest created" && clear
 
-clear
-echo -e "${RED}Syncing full repo...${RESET}"
+# ========================================
+# Repository Synchronization
+# Download and synchronize the complete source tree
+# ========================================
+echo -e "${YELLOW}Syncing full repo...${RESET}"
 repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune || error_exit "Repo sync failed"
 print_header "Repo sync success"
 
@@ -408,7 +422,6 @@ print_header "Repo sync success"
 # Modified Packages
 # Clone custom packages and vendor repositories
 # ========================================
-
 clone_modified_packages()
 {
 ############## Função desabilitada
@@ -439,12 +452,13 @@ clone_hal "https://github.com/sapphire-sm6225/device_qcom_sepolicy_vndr.git" "de
 print_header "HALs cloned" && clear
 
 # Instala o script de upload do GoFile e cria o alias "gofile" no bashrc.
-gofile_install(){
-echo -e "${CYAN}Installing gofile upload tool...${RESET}"
+gofile_install()
+{
+echo -e "${YELLOW}Installing gofile upload tool...${RESET}"
 wget -q https://raw.githubusercontent.com/kenway214/GoFile-Upload-Script/master/upload.sh \
-    -O ~/LineageOS-MicroG/gofile && chmod +x ~/LineageOS-MicroG/gofile
+    -O ~/LOSMG/gofile && chmod +x ~/LOSMG/gofile
 if ! grep -q 'alias gofile' ~/.bashrc; then
-    echo 'alias gofile="~/LineageOS-MicroG/gofile"' >> ~/.bashrc
+    echo 'alias gofile="~/LOSMG/gofile"' >> ~/.bashrc
 fi
 source ~/.bashrc 2>/dev/null || true
  print_header "gofile installed"
@@ -452,7 +466,8 @@ source ~/.bashrc 2>/dev/null || true
 
 # Desativa GApps stock no lineage_sapphire.mk: comenta o include do gms.mk
 # e derruba as flags do bloco "Gapps config" para false.
-rgapps() {
+rgapps() 
+{
     local MK_FILE="device/xiaomi/sapphire/lineage_sapphire.mk"
 
     if [ ! -f "$MK_FILE" ]; then
@@ -500,32 +515,49 @@ rgapps() {
     print_header "GApps disable pass complete"
 }; rgapps
 
-clear
+#####################################
+#----------------------------------#
+# Coisas que voce não precisa saber
+#----------------------------------#
 patch_signature_spoofing
-patch_version_mk
-echo
-add_privacy_apps
+patch_version_mk; clear
+install_titanium
+install_thunderbird
+install_aurorastore
+install_obtainium
+install_auxio
+gofile_install; clear
 
-clear
-echo -e "${CYAN}Setting up build environment...${RESET}"
+
+# ========================================
+# Build Environment Setup
+# ========================================
+echo -e "${RED}Setting up build environment...${RESET}"
 source build/envsetup.sh
 export BUILD_USERNAME=Tenório
-export BUILD_HOSTNAME=Imortal-LOSMG
+export BUILD_HOSTNAME=los22
 export SKIP_ABI_CHECKS=true
 export WITH_GMS=true
 mkdir -p out/target/product/sapphire/obj/KERNEL_OBJ/usr
-print_header "Build environment ready"
+print_header "Build environment ready"; clear
 
-clear
-echo -e "${RED}Starting build...${RESET}"
-brunch sapphire user || error_exit "Brunch failed"
+# ========================================
+# Build
+# Start ROM compilation
+# ========================================
+echo -e "${YELLOW}Starting build...${RESET}"
+ brunch sapphire user || error_exit "Brunch failed"
 
+# ========================================
+# ROM Upload to GoFile
+# Find, checksum, and upload the latest ROM
+# ========================================
 # Localiza o ROM mais recente, gera o SHA256 e envia para o GoFile
 # (usando o script local se existir, com fallback via download remoto).
 upload(){
     # Upload ROM to GoFile
     BUILD_DIR="out/target/product/sapphire"
-    GOFILE_SCRIPT="${HOME}/LineageOS-MicroG/gofile"
+    GOFILE_SCRIPT="${HOME}/LOSMG/gofile"
     ROM_URL=""
     ROM_SHA256=""
     ROM_SIZE=""
