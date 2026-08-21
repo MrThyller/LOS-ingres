@@ -382,9 +382,11 @@ install_aurorastore() {
 
     rm -rf vendor/aurora/.git
 
-    add_to_device_mk "AuroraStore"
+# Corrigir assinatura do AuroraServices
+sed -i '/LOCAL_MODULE := AuroraServices/,/include $(BUILD_PREBUILT)/ s/LOCAL_CERTIFICATE := releasekey/LOCAL_CERTIFICATE := PRESIGNED/' vendor/aurora/Android.mk
 
-    print_header "AuroraStore installed"
+add_to_device_mk "AuroraStore"
+add_to_device_mk "AuroraServices"
 }
 
 # ============================================================
