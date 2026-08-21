@@ -297,74 +297,6 @@ add_to_device_mk() {
 }
 
 # ============================================================
-# DUCKDUCKGO
-# ============================================================
-
-install_duckduckgo() {
-    echo -e "${CYAN}Installing DuckDuckGo prebuilt...${RESET}"
-
-    local DIR="device/xiaomi/ingres/prebuilt/duckduckgo"
-
-    mkdir -p "$DIR"
-
-    wget -q --show-progress \
-        -O "$DIR/DuckDuckGo.apk" \
-        "https://f-droid.org/repo/com.duckduckgo.mobile.android_50010000.apk" \
-        || {
-            echo -e "${YELLOW}DuckDuckGo download failed. Skipping.${RESET}"
-            return 0
-        }
-
-    cat > "$DIR/Android.bp" << 'EOF'
-android_app_import {
-    name: "DuckDuckGo",
-    apk: "DuckDuckGo.apk",
-    presigned: true,
-    dex_preopt: {
-        enabled: false,
-    },
-}
-EOF
-
-    add_to_device_mk "DuckDuckGo"
-
-    print_header "DuckDuckGo installed"
-}
-
-# ============================================================
-# THUNDERBIRD
-# ============================================================
-
-install_thunderbird() {
-    echo -e "${CYAN}Installing Thunderbird prebuilt...${RESET}"
-
-    local DIR="device/xiaomi/ingres/prebuilt/thunderbird"
-
-    mkdir -p "$DIR"
-
-    wget -q --show-progress \
-        -O "$DIR/Thunderbird.apk" \
-        "https://f-droid.org/repo/net.thunderbird.android_23.apk" \
-        || error_exit "Failed to download Thunderbird.apk"
-
-    cat > "$DIR/Android.bp" << 'EOF'
-android_app_import {
-    name: "Thunderbird",
-    apk: "Thunderbird.apk",
-    presigned: true,
-    preprocessed: true,
-    dex_preopt: {
-        enabled: false,
-    },
-}
-EOF
-
-    add_to_device_mk "Thunderbird"
-
-    print_header "Thunderbird installed"
-}
-
-# ============================================================
 # AURORA STORE
 # ============================================================
 
@@ -417,8 +349,6 @@ add_to_device_mk "AuroraStore"
 add_privacy_apps() {
     echo -e "${CYAN}Installing privacy applications...${RESET}"
 
-    install_duckduckgo
-    install_thunderbird
     install_aurorastore
 
     print_header "Privacy applications complete"
@@ -485,16 +415,6 @@ patch_signature_spoofing() {
     fi
 }
 
-    # Remove linhas antigas de customização do nome
-    sed -i '/LineageOS MicroG custom suffix/d' "$version_mk"
-    sed -i '/LineageMG custom suffix/d' "$version_mk"
-    sed -i '/LINEAGE_VERSION_SUFFIX := .*LineageMG/d' "$version_mk"
-
-    # Troca somente LineageOS por LineageMG
-    sed -i 's/LineageOS/LineageMG/g' "$version_mk"
-
-    print_header "ROM version set to LineageMG"
-
 # ============================================================
 # BUILD CONFIG
 # ============================================================
@@ -544,16 +464,13 @@ rgapps
 # 8. Signature Spoofing
 patch_signature_spoofing
 
-# 9. Nome/versionamento
-patch_version_mk
-
-# 10. Apps
+# 9. Apps
 add_privacy_apps
 
-# 11. Ambiente de build
+# 10. Ambiente de build
 setup_build_environment
 
-# 12. Build
+# 11. Build
 echo -e "${RED}Starting LineageMG build...${RESET}"
 
 brunch ingres user \
