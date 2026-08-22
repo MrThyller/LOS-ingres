@@ -1,6 +1,6 @@
 ### Script pra compilar (Versão base/sem mods)
 ```
-curl -fsSL https://raw.githubusercontent.com/MrThyller/LOSMG-ingres/refs/heads/main/LineageOS-23.2/base.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MrThyller/LOS-ingres/refs/heads/main/LineageOS-23.2/base.sh | bash
 ```
 
 
