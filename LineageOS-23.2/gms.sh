@@ -202,35 +202,6 @@ EOF
 }
 
 # ============================================================
-# MICROG MANIFEST
-# ============================================================
-
-create_microg_manifest() {
-    echo -e "${CYAN}Creating MicroG manifest...${RESET}"
-
-    mkdir -p .repo/local_manifests
-
-    cat > .repo/local_manifests/microg.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<manifest>
-
-    <remote
-        name="lineageos4microg"
-        fetch="https://github.com/lineageos4microg/" />
-
-    <project
-        path="vendor/partner_gms"
-        name="android_vendor_partner_gms"
-        remote="lineageos4microg"
-        revision="master" />
-
-</manifest>
-EOF
-
-    print_header "microg.xml created"
-}
-
-# ============================================================
 # SYNC
 # ============================================================
 
@@ -265,73 +236,6 @@ add_to_device_mk() {
 }
 
 # ============================================================
-# AURORA STORE
-# ============================================================
-
-install_aurorastore() {
-    echo -e "${CYAN}Installing AuroraStore...${RESET}"
-
-    rm -rf vendor/aurora
-
-    git clone \
-        --depth 1 \
-        -b 12L \
-        https://github.com/MSe1969/AuroraStore-prebuilt.git \
-        vendor/aurora \
-        || error_exit "Failed to clone AuroraStore"
-
-    rm -rf vendor/aurora/.git
-    rm -rf vendor/aurora/Android.mk
-
-    cat > vendor/aurora/Android.mk << 'EOF'
-    # AuroraStore as a regular system app
-#
-# Prebuilt content taken from:
-# https://gitlab.com/AuroraOSS/AuroraStore/tags
-#
-LOCAL_PATH := $(call my-dir)
-
-include $(CLEAR_VARS)
-
-LOCAL_MODULE := AuroraStore
-LOCAL_SRC_FILES := AuroraStore_4.6.4.apk
-LOCAL_MODULE_CLASS := APPS
-LOCAL_MODULE_SUFFIX := $(COMMON_ANDROID_PACKAGE_SUFFIX)
-LOCAL_CERTIFICATE := PRESIGNED
-LOCAL_OPTIONAL_USES_LIBRARIES := \
-    androidx.window.extensions \
-    androidx.window.sidecar
-LOCAL_PRODUCT_MODULE := true
-LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/$(LOCAL_SRC_FILES)
-
-include $(BUILD_PREBUILT)
-EOF
-    
-add_to_device_mk "AuroraStore"
-}
-
-# ============================================================
-# SIGNATURE SPOOFING
-# ============================================================
-patch_signature_spoofing() {
-    local COMPUTER_ENGINE="frameworks/base/services/core/java/com/android/server/pm/ComputerEngine.java"
-
-    if [ ! -f "$COMPUTER_ENGINE" ]; then
-        echo -e "${YELLOW}ComputerEngine.java not found. Skipping Signature Spoofing.${RESET}"
-        return 0
-    fi
-
-    cp "$COMPUTER_ENGINE" "${COMPUTER_ENGINE}.backup"
-
-    if grep -q 'if (!isDebuggable())' "$COMPUTER_ENGINE"; then
-        sed -i '/if (!isDebuggable()) {/{N;N;d}' "$COMPUTER_ENGINE"
-        print_header "Signature Spoofing patch applied"
-    else
-        echo -e "${YELLOW}Signature Spoofing block not found or already patched.${RESET}"
-    fi
-}
-
-# ============================================================
 # BUILD CONFIG
 # ============================================================
 
@@ -341,7 +245,7 @@ setup_build_environment() {
     source build/envsetup.sh
 
     export BUILD_USERNAME=Torquatox7
-    export BUILD_HOSTNAME=LineageMG
+    export BUILD_HOSTNAME=LineageGMS
     export SKIP_ABI_CHECKS=true
     export WITH_GMS=true
 
@@ -362,16 +266,14 @@ init_lineage
 
 # Manifests locais (device, kernel, MicroG)
 create_roomservice_manifest
-create_microg_manifest
-
+# repo sync
 sync_lineage
-patch_signature_spoofing
 
 # Ambiente de build
 setup_build_environment
 
 # Build
-echo -e "${RED}Starting LineageMG build...${RESET}"
+echo -e "${RED}Starting LineageGMS build...${RESET}"
 
 brunch ingres user || error_exit "Brunch failed"
 
