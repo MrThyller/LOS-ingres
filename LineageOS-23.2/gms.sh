@@ -214,6 +214,42 @@ sync_lineage() {
     print_header "Repo sync complete"
 }
 
+# =========================
+# KernelSU-Next
+# =========================
+
+kernel_su() {
+echo "==> adding  KernelSU-Next..."
+
+cd kernel/xiaomi/sm8450 || exit 1
+
+curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
+
+cd ../../..
+
+echo "==> KernelSU-Next added!"
+}
+
+# ============================================================
+# GAPPS
+# ============================================================
+
+clone_gapps() {
+   echo -e "${RED}Starting clone Gapps...${RESET}"
+
+rm -rf vendor/gapps
+
+git clone \
+     --depth 1 \
+    -b baklava \
+https://gitlab.com/MindTheGapps/vendor_gapps \
+vendor/gapps \
+|| error_exit "Failed to clone Gapps"
+
+print_header "Clone Gapps complete"
+}
+
+
 # ============================================================
 # PRODUCT PACKAGES
 # ============================================================
@@ -268,6 +304,13 @@ init_lineage
 create_roomservice_manifest
 # repo sync
 sync_lineage
+
+# add ksu
+kernel_su
+
+# gapps
+
+clone_gapps
 
 # Ambiente de build
 setup_build_environment
