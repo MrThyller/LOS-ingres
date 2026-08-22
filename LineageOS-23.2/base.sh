@@ -233,34 +233,6 @@ EOF
     print_header "roomservice.xml created"
 }
 
-# ============================================================
-# MICROG MANIFEST
-# ============================================================
-
-create_microg_manifest() {
-    echo -e "${CYAN}Creating MicroG manifest...${RESET}"
-
-    mkdir -p .repo/local_manifests
-
-    cat > .repo/local_manifests/microg.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<manifest>
-
-    <remote
-        name="lineageos4microg"
-        fetch="https://github.com/lineageos4microg/" />
-
-    <project
-        path="vendor/partner_gms"
-        name="android_vendor_partner_gms"
-        remote="lineageos4microg"
-        revision="master" />
-
-</manifest>
-EOF
-
-    print_header "microg.xml created"
-}
 
 # ============================================================
 # SEGUNDO SYNC
@@ -296,123 +268,39 @@ add_to_device_mk() {
     fi
 }
 
-# ============================================================
-# AURORA STORE
-# ============================================================
+# =========================
+# KernelSU-Next
+# =========================
 
-install_aurorastore() {
-    echo -e "${CYAN}Installing AuroraStore...${RESET}"
+kernel_su() {
+echo "==> adding  KernelSU-Next..."
 
-    rm -rf vendor/aurora
+cd kernel/xiaomi/sm8450 || exit 1
 
-    git clone \
-        --depth 1 \
-        -b 12L \
-        https://github.com/MSe1969/AuroraStore-prebuilt.git \
-        vendor/aurora \
-        || error_exit "Failed to clone AuroraStore"
+curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
 
-    rm -rf vendor/aurora/.git
-    rm -rf vendor/aurora/Android.mk
+cd ../../..
 
-    cat > vendor/aurora/Android.mk << 'EOF'
-    # AuroraStore as a regular system app
-#
-# Prebuilt content taken from:
-# https://gitlab.com/AuroraOSS/AuroraStore/tags
-#
-LOCAL_PATH := $(call my-dir)
-
-include $(CLEAR_VARS)
-
-LOCAL_MODULE := AuroraStore
-LOCAL_SRC_FILES := AuroraStore_4.6.4.apk
-LOCAL_MODULE_CLASS := APPS
-LOCAL_MODULE_SUFFIX := $(COMMON_ANDROID_PACKAGE_SUFFIX)
-LOCAL_CERTIFICATE := PRESIGNED
-LOCAL_OPTIONAL_USES_LIBRARIES := \
-    androidx.window.extensions \
-    androidx.window.sidecar
-LOCAL_PRODUCT_MODULE := true
-LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/$(LOCAL_SRC_FILES)
-
-include $(BUILD_PREBUILT)
-EOF
-    
-add_to_device_mk "AuroraStore"
+echo "==> KernelSU-Next added!"
 }
 
 # ============================================================
-# PRIVACY APPS
+# GAPPS
 # ============================================================
 
-add_privacy_apps() {
-    echo -e "${CYAN}Installing privacy applications...${RESET}"
+clone_gapps() {
+   echo -e "${RED}Starting clone Gapps...${RESET}"
 
-    install_aurorastore
+rm -rf vendor/gapps
 
-    print_header "Privacy applications complete"
-}
+git clone \
+     --depth 1 \
+    -b baklava \
+https://gitlab.com/MindTheGapps/vendor_gapps \
+vendor/gapps \
+|| error_exit "Failed to clone Gapps"
 
-# ============================================================
-# DESATIVAR GAPPS
-# ============================================================
-
-rgapps() {
-    local MK_FILE="device/xiaomi/ingres/lineage_ingres.mk"
-
-    if [ ! -f "$MK_FILE" ]; then
-        echo -e "${YELLOW}$MK_FILE not found. Skipping GApps changes.${RESET}"
-        return 0
-    fi
-
-    echo -e "${CYAN}Disabling stock GApps...${RESET}"
-
-    if grep -q '^-include vendor/gms/products/gms.mk$' "$MK_FILE"; then
-        sed -i \
-            's/^-include vendor\/gms\/products\/gms.mk$/#-include vendor\/gms\/products\/gms.mk/' \
-            "$MK_FILE"
-    fi
-
-    local flags=(
-        "TARGET_SUPPORTS_GOOGLE_RECORDER"
-        "TARGET_INCLUDE_STOCK_ARCORE"
-        "TARGET_INCLUDE_GOOGLE_COMMS"
-        "TARGET_INCLUDE_PIXEL_LAUNCHER"
-        "TARGET_INCLUDE_LIVE_WALLPAPERS"
-    )
-
-    local flag
-
-    for flag in "${flags[@]}"; do
-        if grep -q "^${flag} := true$" "$MK_FILE"; then
-            sed -i "s/^${flag} := true$/${flag} := false/" "$MK_FILE"
-        fi
-    done
-
-    print_header "Stock GApps disabled"
-}
-
-# ============================================================
-# SIGNATURE SPOOFING
-# ============================================================
-
-patch_signature_spoofing() {
-    local COMPUTER_ENGINE="frameworks/base/services/core/java/com/android/server/pm/ComputerEngine.java"
-
-    if [ ! -f "$COMPUTER_ENGINE" ]; then
-        echo -e "${YELLOW}ComputerEngine.java not found. Skipping Signature Spoofing.${RESET}"
-        return 0
-    fi
-
-    cp "$COMPUTER_ENGINE" "${COMPUTER_ENGINE}.backup"
-
-    if grep -q 'if (!isDebuggable())' "$COMPUTER_ENGINE"; then
-        sed -i '/if (!isDebuggable()) {/{N;N;d}' "$COMPUTER_ENGINE"
-        print_header "Signature Spoofing patch applied"
-    else
-        echo -e "${YELLOW}Signature Spoofing block not found or already patched.${RESET}"
-    fi
+print_header "Clone Gapps complete"
 }
 
 # ============================================================
@@ -452,14 +340,14 @@ first_sync
 # 4. roomservice.xml
 create_roomservice_manifest
 
-# 5. microg.xml
-create_microg_manifest
-
-# 6. SEGUNDO SYNC
+# 5. SEGUNDO SYNC
 second_sync
 
-# 7. Desativar GApps
-rgapps
+# 6. adicionar ksu
+kernel_su
+
+# 7. add gapps
+clone_gapps
 
 # 8. Signature Spoofing
 patch_signature_spoofing
