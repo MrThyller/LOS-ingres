@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-sed -i 's/\r$//' "$0"
 #-------------------------------------------------------------------#
 # Autor       : WhoFoss <https://github.com/WhoFoss> & Tenório <https://github.com/tenorio-md> 
-# Programa    : los23.2.sh
 # DESCRIÇÃO   :
 # lineageOS-MicroG for ingres, forked by sapphire(Redmi note 13 4g)
 #-------------------------------------------------------------------#
@@ -21,11 +19,6 @@ trap 'echo -en "\033[?12l\033[?25h"' EXIT
 # ============================================================
 # FUNÇÕES BÁSICAS
 # ============================================================
-
-error_exit() {
-    echo -e "${RED}[ERROR] $1${RESET}"
-    exit 1
-}
 
 print_header() {
     local message="$1"
