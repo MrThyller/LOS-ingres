@@ -302,6 +302,7 @@ init_lineage
 
 # Manifests locais (device, kernel, MicroG)
 create_roomservice_manifest
+
 # repo sync
 sync_lineage
 
@@ -309,7 +310,6 @@ sync_lineage
 kernel_su
 
 # gapps
-
 clone_gapps
 
 # Ambiente de build
