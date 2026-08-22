@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+sed -i 's/\r$//' "$0"
 #-------------------------------------------------------------------#
 # Autor       : WhoFoss <https://github.com/WhoFoss> & Tenório <https://github.com/tenorio-md> 
 # Programa    : los23.2.sh
@@ -316,7 +317,9 @@ clone_gapps
 setup_build_environment
 
 # Build
-echo -e "${RED}Starting LineageGMS build...${RESET}"
+echo -e "${RED}Starting LineageMG build...${RESET}"
 
-brunch ingres user || error_exit "Brunch failed"
+brunch ingres user \
+    || error_exit "Brunch failed"
 
+print_header "LineageMG build finished"
